@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { baseApiUrl } from '../../api/config';
 // import { useTheme } from '../../context/ThemeContext';
 
 function AuthForm({ onLogin }) {
@@ -20,7 +21,8 @@ function AuthForm({ onLogin }) {
     setLoading(true);
     const url = isLogin ? '/login' : '/register';
 
-    axios.post(`http://localhost:5000${url}`, JSON.stringify(formData), {
+
+    axios.post(`${baseApiUrl}${url}`, JSON.stringify(formData), {
       headers: {
         'Content-Type': 'application/json'
       }
