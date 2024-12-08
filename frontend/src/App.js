@@ -14,7 +14,7 @@ import AllExpenses from './components/expenses/AllExpenses';
 import AnalyticsDashboard from './components/analytics/AnalyticsDashboard';
 import Settings from './components/settings/Settings';
 import AuthForm from './components/auth/AuthForm';
-import ProtectedRoute from './components/auth/ProtectedRoute';
+// import ProtectedRoute from './components/auth/ProtectedRoute';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import DeletedExpenses from './components/expenses/DeletedExpenses';
 import './styles/main.css';
