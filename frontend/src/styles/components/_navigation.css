@@ -1,0 +1,11 @@
+nav {
+    background-color: #aa2323;
+    padding: 10px;
+    display: flex;
+    gap: 15px;
+  }
+  
+  nav a {
+    text-decoration: none;
+    color: #333;
+  }
