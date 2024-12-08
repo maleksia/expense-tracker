@@ -1,0 +1,14 @@
+.debt-calculator {
+    margin-top: 20px;
+  }
+  
+  .debt-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .debt-section:hover {
+    transform: translateX(4px);
+    transition: transform 0.2s ease;
+  }

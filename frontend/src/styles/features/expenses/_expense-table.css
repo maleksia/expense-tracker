@@ -1,0 +1,48 @@
+.expenses-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    background: var(--color-surface);
+  }
+  
+  .expenses-table th,
+  .expenses-table td {
+    text-align: left;
+    border-bottom: 1px solid var(--color-border);
+    padding: var(--spacing-md);
+  }
+  
+  .expenses-table th {
+    background-color: var(--color-surface);
+  }
+  
+  .delete-btn {
+    background-color: var(--color-error);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+  
+  .delete-btn:hover {
+    opacity: 0.9;
+  }
+  
+  .sortable:hover {
+    background-color: #e9ecef;
+  }
+
+  .participants-list {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  .expenses-table td {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
