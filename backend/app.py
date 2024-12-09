@@ -192,7 +192,6 @@ def get_balances():
         if expense.payer not in balances:
             balances[expense.payer] = 0
         balances[expense.payer] += expense.amount
-    # Esimerkkipalautus
     return jsonify(balances)
 
 @app.route('/expenses-by-date', methods=['GET'])
@@ -230,7 +229,7 @@ def delete_expense(id):
             date=expense.date,
             username=expense.username,
             deleted_at=datetime.utcnow(),
-            participants=expense.participants  # Add this line
+            participants=expense.participants
         )
         
         db.session.add(deleted)
@@ -397,7 +396,7 @@ def restore_expense(id):
             category=deleted.category,
             date=deleted.date,
             username=deleted.username,
-            participants=deleted.participants  # Add this line
+            participants=deleted.participants
         )
         db.session.add(expense)
         db.session.delete(deleted)

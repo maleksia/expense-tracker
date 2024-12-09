@@ -1,26 +1,28 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { useTheme } from '../../context/ThemeContext';
+import { baseApiUrl } from '../../api/config';
+// import { useTheme } from '../../context/ThemeContext';
 
 function AuthForm({ onLogin }) {
-  const { theme } = useTheme();
+  // const { theme } = useTheme();
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({ username: '', password: '' });
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  // const handleChange = (e) => {
+  //   setFormData({ ...formData, [e.target.name]: e.target.value });
+  // };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     setLoading(true);
     const url = isLogin ? '/login' : '/register';
 
-    axios.post(`http://localhost:5000${url}`, JSON.stringify(formData), {
+
+    axios.post(`${baseApiUrl}${url}`, JSON.stringify(formData), {
       headers: {
         'Content-Type': 'application/json'
       }

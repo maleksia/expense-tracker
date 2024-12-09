@@ -30,15 +30,15 @@ function DebtCalculator({ expenses, currentUser }) {
     return <p>No debts to display.</p>;
   }
 
-  const groupedDebts = Object.entries(debts).reduce((acc, [debtor, creditors]) => {
-    if (!acc[debtor]) {
-      acc[debtor] = [];
-    }
-    Object.entries(creditors).forEach(([creditor, amount]) => {
-      acc[debtor].push({ creditor, amount });
-    });
-    return acc;
-  }, {});
+  // const groupedDebts = Object.entries(debts).reduce((acc, [debtor, creditors]) => {
+  //   if (!acc[debtor]) {
+  //     acc[debtor] = [];
+  //   }
+  //   Object.entries(creditors).forEach(([creditor, amount]) => {
+  //     acc[debtor].push({ creditor, amount });
+  //   });
+  //   return acc;
+  // }, {});
 
   if (!Object.keys(debts).length) {
     return <p>No debts to display.</p>;
