@@ -27,14 +27,14 @@ function AddExpenseForm({ onSubmit, currentUser, currentList }) {
           setError('No list data available');
           return;
         }
-  
+
         const payersList = currentList.participants.map((name, index) => ({
           id: index,
           name: name
         }));
-  
+
         const categoriesList = await fetchCategories(currentUser, currentList.id);
-  
+
         setPayers(payersList);
         setFormData(prev => ({
           ...prev,
@@ -184,7 +184,32 @@ function AddExpenseForm({ onSubmit, currentUser, currentList }) {
         </div>
 
         <div className="form-group">
-          <label className="form-label">Participants</label>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            marginBottom: '8px'
+          }}>
+            <label className="form-label">Participants</label>
+            <div
+              style={{
+                display: 'inline-block',
+                width: '16px',
+                height: '16px',
+                borderRadius: '50%',
+                backgroundColor: theme.primary,
+                color: '#fff',
+                fontSize: '12px',
+                textAlign: 'center',
+                lineHeight: '16px',
+                cursor: 'help',
+                position: 'relative'
+              }}
+              title="Choose who participates in splitting this expense. By default, all list members are included. Deselect members who don't participate in this expense."
+            >
+              i
+            </div>
+          </div>
           <ParticipantsSelector
             payers={payers}
             selectedParticipants={formData.participants}

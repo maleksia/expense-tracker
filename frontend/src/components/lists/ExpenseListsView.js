@@ -15,9 +15,6 @@ function ExpenseListsView({ currentUser, onListSelect }) {
     const [editingList, setEditingList] = useState(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [listToDelete, setListToDelete] = useState(null);
-    const [showParticipants, setShowParticipants] = useState(false);
-    const [selectedList, setSelectedList] = useState(null);
-
 
     useEffect(() => {
         const loadLists = async () => {
