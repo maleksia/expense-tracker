@@ -15,6 +15,7 @@ class Expense(db.Model):
     date = db.Column(db.DateTime, default=datetime.utcnow)
     username = db.Column(db.String(150), db.ForeignKey('user.username'), nullable=False)
     participants = db.Column(db.String(500))
+    list_id = db.Column(db.Integer, db.ForeignKey('expense_list.id'), nullable=False)
 
     user = db.relationship('User', backref='expenses')
 
@@ -44,6 +45,7 @@ class Category(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     username = db.Column(db.String(150), nullable=False)
+    list_id = db.Column(db.Integer, db.ForeignKey('expense_list.id'))
 
     def as_dict(self):
         return {
@@ -62,6 +64,7 @@ class DeletedExpense(db.Model):
     username = db.Column(db.String(150), nullable=False)
     deleted_at = db.Column(db.DateTime, default=datetime.utcnow)
     participants = db.Column(db.String(500))
+    list_id = db.Column(db.Integer, db.ForeignKey('expense_list.id'))
 
     def as_dict(self):
         return {
@@ -73,6 +76,27 @@ class DeletedExpense(db.Model):
             'category': self.category,
             'date': self.date.strftime('%Y-%m-%d'),
             'deleted_at': self.deleted_at.strftime('%Y-%m-%d %H:%M:%S'),
-            'participants': self.participants.split(',') if self.participants else []
+            'participants': self.participants.split(',') if self.participants else [],
+            'list_id': self.list_id
         }
     
+class ExpenseList(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    created_by = db.Column(db.String(150), db.ForeignKey('user.username'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def as_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'created_by': self.created_by,
+            'createdAt': self.created_at.isoformat(),
+            'participants': [p.username for p in ListParticipant.query.filter_by(list_id=self.id).all()]
+        }
+
+class ListParticipant(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    list_id = db.Column(db.Integer, db.ForeignKey('expense_list.id'), nullable=False)
+    username = db.Column(db.String(150), db.ForeignKey('user.username'), nullable=False)
+    joined_at = db.Column(db.DateTime, default=datetime.utcnow)

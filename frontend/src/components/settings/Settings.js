@@ -1,64 +1,43 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../context/ThemeContext';
-import { fetchPayers, addPayer, deletePayer, fetchCategories, addCategory, deleteCategory } from '../../api';
+import { fetchCategories, addCategory, deleteCategory } from '../../api';
 
-
-function Settings({ currentUser }) {
+function Settings({ currentUser, currentList, fromList }) {
     const { currentTheme, setCurrentTheme, theme } = useTheme();
-    const [newPayer, setNewPayer] = useState('');
     const [newCategory, setNewCategory] = useState('');
-    const [payers, setPayers] = useState([]);
     const [categories, setCategories] = useState([]);
 
+    const showCategories = Boolean(currentList);
 
     useEffect(() => {
-        const loadData = async () => {
-            try {
-                const [payersList, categoriesList] = await Promise.all([
-                    fetchPayers(currentUser),
-                    fetchCategories(currentUser)
-                ]);
-                setPayers(payersList);
-                setCategories(categoriesList);
-            } catch (error) {
-                console.error('Error loading data:', error);
-            }
-        };
-        loadData();
-    }, [currentUser]);
-
-
-    const handleAddPayer = async (e) => {
-        e.preventDefault();
-        try {
-            const added = await addPayer({ name: newPayer, username: currentUser });
-            setPayers([...payers, added]);
-            setNewPayer('');
-        } catch (error) {
-            console.error('Error adding payer:', error);
+        if (showCategories) {
+            const loadCategories = async () => {
+                try {
+                    const categoriesList = await fetchCategories(currentUser, currentList.id);
+                    setCategories(categoriesList);
+                } catch (error) {
+                    console.error('Error loading categories:', error);
+                }
+            };
+            loadCategories();
         }
-    };
+    }, [currentUser, showCategories, currentList]);
 
     const handleAddCategory = async (e) => {
         e.preventDefault();
+        if (!newCategory.trim()) {
+            return;
+        }
         try {
             const added = await addCategory({
                 name: newCategory,
-                username: currentUser
+                username: currentUser,
+                list_id: currentList.id
             });
             setCategories([...categories, added]);
             setNewCategory('');
         } catch (error) {
             console.error('Error adding category:', error);
-        }
-    };
-
-    const handleDeletePayer = async (id) => {
-        try {
-            await deletePayer(id);
-            setPayers(payers.filter(payer => payer.id !== id));
-        } catch (error) {
-            console.error('Error deleting payer:', error);
         }
     };
 
@@ -73,104 +52,99 @@ function Settings({ currentUser }) {
 
 
     return (
-        <div className="settings" style={{
-            background: theme.background,
-            color: theme.text
+        <div style={{
+            padding: '20px',
+            maxWidth: '800px',
+            margin: '0 auto'
         }}>
-            <h2>Settings</h2>
-            <div className="settings-section">
-                <h3>Theme</h3>
+            <h2 style={{ color: theme.text, marginBottom: '30px' }}>Settings</h2>
+
+            {/* Theme Selection - Always visible */}
+            <div style={{
+                backgroundColor: theme.surface,
+                padding: '20px',
+                borderRadius: '8px',
+                marginBottom: '20px'
+            }}>
+                <h3 style={{ color: theme.text, marginBottom: '15px' }}>Theme</h3>
                 <select
                     value={currentTheme}
                     onChange={(e) => setCurrentTheme(e.target.value)}
                     style={{
-                        background: theme.surface,
-                        color: theme.text,
-                        border: `1px solid ${theme.border}`
+                        padding: '8px',
+                        borderRadius: '4px',
+                        border: `1px solid ${theme.border}`,
+                        backgroundColor: theme.background,
+                        color: theme.text
                     }}
                 >
                     <option value="light">Light</option>
                     <option value="dark">Dark</option>
                     <option value="forest">Forest</option>
                 </select>
-                <h3>Manage Payers</h3>
-                <form onSubmit={handleAddPayer}>
-                    <input
-                        type="text"
-                        value={newPayer}
-                        onChange={(e) => setNewPayer(e.target.value)}
-                        placeholder="Add new payer"
-                        style={{
-                            backgroundColor: theme.surface,
-                            color: theme.text,
-                            border: `1px solid ${theme.border}`
-                        }}
-                    />
-                    <button type="submit">Add Payer</button>
-                </form>
-                <div className="items-list">
-                    {payers.map(payer => (
-                        <div key={payer.id} className="list-item" style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            padding: '0.5rem',
-                            margin: '0.5rem 0',
-                            backgroundColor: theme.surface,
-                            borderRadius: '4px'
-                        }}>
-                            <span>{payer.name}</span>
-                            <button
-                                onClick={() => handleDeletePayer(payer.id)}
+            </div>
+
+            {/* List-specific settings */}
+            {showCategories && (
+                <div style={{
+                    backgroundColor: theme.surface,
+                    padding: '20px',
+                    borderRadius: '8px',
+                    marginBottom: '20px'
+                }}>
+                    <h3 style={{ color: theme.text, marginBottom: '15px' }}>Manage Categories</h3>
+                    <form onSubmit={handleAddCategory} style={{ marginBottom: '15px' }}>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                            <input
+                                type="text"
+                                value={newCategory}
+                                onChange={(e) => setNewCategory(e.target.value)}
+                                placeholder="Add new category"
                                 style={{
-                                    backgroundColor: theme.error,
+                                    flex: 1,
+                                    padding: '8px',
+                                    borderRadius: '4px',
+                                    border: `1px solid ${theme.border}`,
+                                    backgroundColor: theme.background,
+                                    color: theme.text
+                                }}
+                            />
+                            <button
+                                type="submit"
+                                style={{
+                                    padding: '8px 16px',
+                                    backgroundColor: theme.primary,
                                     color: '#fff',
                                     border: 'none',
-                                    padding: '0.25rem 0.5rem',
                                     borderRadius: '4px',
                                     cursor: 'pointer'
                                 }}
                             >
-                                Delete
+                                Add
                             </button>
                         </div>
-                    ))}
-                </div>
-                <div className="payers-list">
-                    <h3>Manage Categories</h3>
-                    <form onSubmit={handleAddCategory}>
-                        <input
-                            type="text"
-                            value={newCategory}
-                            onChange={(e) => setNewCategory(e.target.value)}
-                            placeholder="Add new category"
-                            style={{
-                                backgroundColor: theme.surface,
-                                color: theme.text,
-                                border: `1px solid ${theme.border}`
-                            }}
-                        />
-                        <button type="submit">Add Category</button>
                     </form>
-                    <div className="items-list">
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                         {categories.map(category => (
-                            <div key={category.id} className="list-item" style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                padding: '0.5rem',
-                                margin: '0.5rem 0',
-                                backgroundColor: theme.surface,
-                                borderRadius: '4px'
-                            }}>
-                                <span>{category.name}</span>
+                            <div
+                                key={category.id}
+                                style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    padding: '10px',
+                                    backgroundColor: theme.background,
+                                    borderRadius: '4px'
+                                }}
+                            >
+                                <span style={{ color: theme.text }}>{category.name}</span>
                                 <button
                                     onClick={() => handleDeleteCategory(category.id)}
                                     style={{
+                                        padding: '4px 8px',
                                         backgroundColor: theme.error,
                                         color: '#fff',
                                         border: 'none',
-                                        padding: '0.25rem 0.5rem',
                                         borderRadius: '4px',
                                         cursor: 'pointer'
                                     }}
@@ -181,7 +155,18 @@ function Settings({ currentUser }) {
                         ))}
                     </div>
                 </div>
-            </div>
+            )}
+
+            {/* Home view features */}
+            {!showCategories && (
+                <div style={{
+                    backgroundColor: theme.surface,
+                    padding: '20px',
+                    borderRadius: '8px'
+                }}>
+                    <h3 style={{ color: theme.text, marginBottom: '15px' }}>Coming Soon</h3>
+                </div>
+            )}
         </div>
     );
 }

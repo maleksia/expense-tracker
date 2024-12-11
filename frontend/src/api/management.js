@@ -17,8 +17,8 @@ export const deletePayer = async (id) => {
 };
 
 // Category management
-export const fetchCategories = async (username) => {
-  const response = await API.get(`/categories?username=${username}`);
+export const fetchCategories = async (username, listId) => {
+  const response = await API.get(`/categories?username=${username}&list_id=${listId}`);
   return response.data;
 };
 
@@ -33,8 +33,8 @@ export const deleteCategory = async (id) => {
 };
 
 // Trash management
-export const fetchTrash = async (username) => {
-  const response = await API.get(`/trash?username=${username}`);
+export const fetchTrash = async (username, listId) => {
+  const response = await API.get(`/trash?username=${username}&list_id=${listId}`);
   return response.data;
 };
 

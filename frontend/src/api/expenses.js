@@ -1,8 +1,8 @@
 import { API } from './config';
 import { socket } from './socket';
 
-export const fetchExpenses = (username) => {
-  return API.get(`/expenses?username=${username}`)
+export const fetchExpenses = (username, listId) => {
+  return API.get(`/expenses?username=${username}&list_id=${listId}`)
     .then(response => response.data)
     .catch(error => {
       console.error("Error fetching expenses:", error);

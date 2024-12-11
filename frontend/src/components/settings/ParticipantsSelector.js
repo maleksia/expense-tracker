@@ -25,7 +25,7 @@ function ParticipantsSelector({ payers, selectedParticipants, onSelect }) {
             cursor: 'pointer'
           }}
         >
-          All Participants
+          All
         </button>
         <button
           type="button"

@@ -4,7 +4,7 @@ from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_socketio import SocketIO
 from db import db
-from models import User, Expense, Payer, Category, DeletedExpense
+from models import User, Expense, Payer, Category, DeletedExpense, ExpenseList, ListParticipant
 
 app = Flask(__name__, static_folder='build', static_url_path='')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///expenses.db'
@@ -83,18 +83,22 @@ def handle_preflight():
         response = app.response_class(status=200)
         response.headers.add("Access-Control-Allow-Origin", "http://localhost:3000")
         response.headers.add("Access-Control-Allow-Headers", "Content-Type")
-        response.headers.add("Access-Control-Allow-Methods", "GET, POST, OPTIONS, DELETE")
+        response.headers.add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
         response.headers.add("Access-Control-Allow-Credentials", "true")
         return response
     
-def calculate_debts_internal(username=None):
+def calculate_debts_internal(username=None, list_id=None):
     if not username:
         return {}
         
-    expenses = Expense.query.filter_by(username=username).all()
+    query = Expense.query.filter_by(username=username)
+    if list_id:
+        query = query.filter_by(list_id=list_id)
+    
+    expenses = query.all()
     if not expenses:
         return {}
-
+    
     debts = {}
     for expense in expenses:
         payer = expense.payer
@@ -116,7 +120,17 @@ def calculate_debts_internal(username=None):
 @app.route('/calculate-debts', methods=['GET'])
 def calculate_debts():
     username = request.args.get('username')
-    debts = calculate_debts_internal(username)
+    list_id = request.args.get('list_id')
+    
+    if not username:
+        return jsonify({"error": "Username required"}), 400
+        
+    # Use the existing calculate_debts_internal function
+    debts = calculate_debts_internal(username, list_id)
+    
+    # Emit update through socket
+    socketio.emit(f'expensesUpdated_{username}_{list_id}', debts)
+    
     return jsonify(debts)
 
 @socketio.on('connect')
@@ -130,8 +144,6 @@ def handle_connect():
 def add_expense():
     try:
         data = request.get_json()
-        
-        # Convert participants list to string for storage
         participants_str = ','.join(data.get('participants', []))
         
         new_expense = Expense(
@@ -141,19 +153,19 @@ def add_expense():
             category=data['category'],
             date=datetime.strptime(data['date'], '%Y-%m-%d') if 'date' in data else None,
             username=data['username'],
-            participants=participants_str
+            participants=participants_str,
+            list_id=data['list_id']
         )
         
         db.session.add(new_expense)
         db.session.commit()
         
-        # Convert back to list for response
         expense_dict = new_expense.as_dict()
         expense_dict['participants'] = data.get('participants', [])
         
-        # Recalculate debts
-        debts = calculate_debts_internal(data['username'])
-        socketio.emit(f'expensesUpdated_{data["username"]}', debts)
+        # Update debts calculation with list_id
+        debts = calculate_debts_internal(data['username'], data['list_id'])
+        socketio.emit(f'expensesUpdated_{data["username"]}_{data["list_id"]}', debts)
         
         return jsonify(expense_dict), 201
     except Exception as e:
@@ -163,20 +175,18 @@ def add_expense():
 
 @app.route('/expenses', methods=['GET'])
 def get_expenses():
-    try:
-        username = request.args.get('username')
-
-        if not username:
-            return jsonify({"error": "Username is required"}), 400
-
-        expenses = Expense.query.filter_by(username=username).all()
-
-        return jsonify([expense.as_dict() for expense in expenses])
-    except Exception as e:
-        return jsonify({"error": "Failed to fetch expenses", "details": str(e)}), 500
-
-
-
+    username = request.args.get('username')
+    list_id = request.args.get('list_id')
+    
+    if not username:
+        return jsonify({"error": "Username required"}), 400
+    
+    query = Expense.query.filter_by(username=username)
+    if list_id:
+        query = query.filter_by(list_id=list_id)
+    
+    expenses = query.all()
+    return jsonify([expense.as_dict() for expense in expenses])
 
 @app.route('/')
 def index():
@@ -199,7 +209,6 @@ def expenses_by_date():
     start_date = request.args.get('start')
     end_date = request.args.get('end')
 
-    # Varmista, että päivämäärät on annettu oikeassa muodossa
     try:
         start_date = datetime.strptime(start_date, '%Y-%m-%d')
         end_date = datetime.strptime(end_date, '%Y-%m-%d')
@@ -229,7 +238,8 @@ def delete_expense(id):
             date=expense.date,
             username=expense.username,
             deleted_at=datetime.utcnow(),
-            participants=expense.participants
+            participants=expense.participants,
+            list_id=expense.list_id
         )
         
         db.session.add(deleted)
@@ -241,6 +251,7 @@ def delete_expense(id):
         db.session.rollback()
         print(f"Error deleting expense: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
 
 @app.route('/register', methods=['POST', 'OPTIONS'])
 def register():
@@ -291,49 +302,41 @@ def login():
             'error': 'Login failed'
         }), 500
 
-@app.route('/categories', methods=['OPTIONS', 'GET', 'POST'])
-def categories():
-    if request.method == 'OPTIONS':
-        response = jsonify({'message': 'OK'})
-        response.headers.add('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
-        return response
-
+@app.route('/categories', methods=['GET'])
+def get_categories():
     try:
-        if request.method == 'POST':
-            data = request.get_json()
-            print("Received category data:", data)
-
-            if not data:
-                return jsonify({'error': 'No data provided'}), 400
-            
-            new_category = Category(
-                name=data['name'],
-                username=data['username']
-            )
-            db.session.add(new_category)
-            db.session.commit()
-            
-            return jsonify({
-                'id': new_category.id,
-                'name': new_category.name
-            }), 201
-
-        # GET request
         username = request.args.get('username')
+        list_id = request.args.get('list_id')
+        
         if not username:
-            return jsonify({'error': 'Username parameter is required'}), 400
+            return jsonify({"error": "Username required"}), 400
             
-        categories = Category.query.filter_by(username=username).all()
-        return jsonify([{
-            'id': c.id,
-            'name': c.name
-        } for c in categories])
+        query = Category.query.filter_by(username=username)
+        if list_id:
+            query = query.filter_by(list_id=list_id)
+            
+        categories = query.all()
+        return jsonify([category.as_dict() for category in categories])
+    except Exception as e:
+        print(f"Error in categories endpoint: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
+@app.route('/categories', methods=['POST'])
+def add_category():
+    try:
+        data = request.get_json()
+        new_category = Category(
+            name=data['name'],
+            username=data['username'],
+            list_id=data['list_id']
+        )
+        db.session.add(new_category)
+        db.session.commit()
+        return jsonify(new_category.as_dict()), 201
     except Exception as e:
         db.session.rollback()
-        print(f"Error in categories endpoint: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        print(f"Error adding category: {str(e)}")
+        return jsonify({"error": str(e)}), 500
     
 @app.route('/payers/<int:id>', methods=['DELETE'])
 def delete_payer(id):
@@ -366,10 +369,16 @@ def delete_category(id):
 @app.route('/trash', methods=['GET'])
 def get_trash():
     username = request.args.get('username')
+    list_id = request.args.get('list_id')
+    
     if not username:
-        return jsonify({"error": "Username is required"}), 400
+        return jsonify({"error": "Username required"}), 400
         
-    deleted = DeletedExpense.query.filter_by(username=username).all()
+    query = DeletedExpense.query.filter_by(username=username)
+    if list_id:
+        query = query.filter_by(list_id=list_id)
+        
+    deleted = query.all()
     return jsonify([{
         'id': d.id,
         'original_id': d.original_id,
@@ -396,7 +405,8 @@ def restore_expense(id):
             category=deleted.category,
             date=deleted.date,
             username=deleted.username,
-            participants=deleted.participants
+            participants=deleted.participants,
+            list_id=deleted.list_id
         )
         db.session.add(expense)
         db.session.delete(deleted)
@@ -404,6 +414,113 @@ def restore_expense(id):
         return jsonify(expense.as_dict()), 200
     except Exception as e:
         db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+    
+@app.route('/lists', methods=['GET'])
+def get_lists():
+    username = request.args.get('username')
+    if not username:
+        return jsonify({"error": "Username required"}), 400
+    
+    lists = ExpenseList.query.filter_by(created_by=username).all()
+    return jsonify([list.as_dict() for list in lists])
+
+@app.route('/lists', methods=['POST'])
+def create_list():
+    try:
+        data = request.get_json()
+        print("Received data:", data)  # Debug log
+        
+        new_list = ExpenseList(
+            name=data['name'],
+            created_by=data['createdBy']
+        )
+        db.session.add(new_list)
+        db.session.flush()  # Get ID before adding participants
+        
+        # Add participants
+        for username in data.get('participants', []):
+            participant = ListParticipant(
+                list_id=new_list.id,
+                username=username
+            )
+            db.session.add(participant)
+        
+        db.session.commit()
+        return jsonify(new_list.as_dict()), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        print("Error creating list:", str(e))  # Debug log
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/lists', methods=['OPTIONS'])
+def handle_lists_options():
+    response = jsonify({'message': 'OK'})
+    response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+    return response
+
+@app.route('/lists/<int:list_id>', methods=['PUT'])
+def update_list(list_id):
+    try:
+        data = request.get_json()
+        expense_list = ExpenseList.query.get_or_404(list_id)
+        expense_list.name = data['name']
+        
+        ListParticipant.query.filter_by(list_id=list_id).delete()
+        for username in data['participants']:
+            participant = ListParticipant(
+                list_id=list_id,
+                username=username
+            )
+            db.session.add(participant)
+        
+        db.session.commit()
+        return jsonify(expense_list.as_dict())
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+    
+@app.route('/lists/<int:list_id>', methods=['DELETE'])
+def delete_list(list_id):
+    try:
+        # Get the list first
+        expense_list = ExpenseList.query.get_or_404(list_id)
+        
+        # Delete related records one by one with error checking
+        try:
+            # Delete participants
+            ListParticipant.query.filter_by(list_id=list_id).delete()
+            
+            # Delete expenses (only if list_id column exists)
+            if hasattr(Expense, 'list_id'):
+                Expense.query.filter_by(list_id=list_id).delete()
+            
+            # Finally delete the list
+            db.session.delete(expense_list)
+            db.session.commit()
+            
+            return jsonify({"message": "List deleted successfully"}), 200
+            
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({"error": f"Error during deletion: {str(e)}"}), 500
+            
+    except Exception as e:
+        return jsonify({"error": f"List not found or error occurred: {str(e)}"}), 404
+    
+@app.route('/lists/<int:list_id>', methods=['GET'])
+def get_list(list_id):
+    try:
+        expense_list = ExpenseList.query.get_or_404(list_id)
+        participants = ListParticipant.query.filter_by(list_id=list_id).all()
+        
+        list_data = expense_list.as_dict()
+        list_data['participants'] = [p.username for p in participants]
+        
+        return jsonify(list_data)
+    except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':

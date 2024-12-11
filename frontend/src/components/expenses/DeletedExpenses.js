@@ -2,27 +2,34 @@ import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import { fetchTrash } from '../../api';
 
-function DeletedExpenses({ currentUser, onRestore }) {
+function DeletedExpenses({ currentUser, onRestore, currentList }) {
   const { theme } = useTheme();
   const [deletedExpenses, setDeletedExpenses] = useState([]);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (currentUser) {
-      const loadTrash = async () => {
-        try {
-          const data = await fetchTrash(currentUser);
-
-          setDeletedExpenses(data);
-        } catch (error) {
-          console.error('Error loading trash:', error);
-          setError('Failed to load deleted expenses');
+    const loadTrash = async () => {
+      try {
+        if (!currentList?.id) {
+          console.log('No list ID available for deleted expenses');
+          return;
         }
-      };
 
-      loadTrash();
-    }
-  }, [currentUser]);
+        console.log('Fetching deleted expenses for:', {
+          currentUser,
+          listId: currentList.id
+        });
+
+        const data = await fetchTrash(currentUser, currentList.id);
+        setDeletedExpenses(data);
+      } catch (error) {
+        console.error('Error loading trash:', error);
+        setError('Failed to load deleted expenses');
+      }
+    };
+
+    loadTrash();
+  }, [currentUser, currentList]);
 
   const handleRestore = async (id) => {
     try {

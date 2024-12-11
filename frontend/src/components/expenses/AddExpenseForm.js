@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../context/ThemeContext';
-import { fetchPayers, fetchCategories } from '../../api';
+import { fetchCategories } from '../../api';
 import PayerSelector from '../settings/PayerSelector';
 import ParticipantsSelector from '../settings/ParticipantsSelector';
 import CategorySelector from '../settings/CategorySelector';
 
-function AddExpenseForm({ onSubmit, currentUser }) {
+function AddExpenseForm({ onSubmit, currentUser, currentList }) {
   const { theme } = useTheme();
   const [formData, setFormData] = useState({
     payer: '',
@@ -23,14 +23,22 @@ function AddExpenseForm({ onSubmit, currentUser }) {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [payersList, categoriesList] = await Promise.all([
-          fetchPayers(currentUser),
-          fetchCategories(currentUser)
-        ]);
+        if (!currentList || !currentList.participants) {
+          setError('No list data available');
+          return;
+        }
+  
+        const payersList = currentList.participants.map((name, index) => ({
+          id: index,
+          name: name
+        }));
+  
+        const categoriesList = await fetchCategories(currentUser, currentList.id);
+  
         setPayers(payersList);
         setFormData(prev => ({
           ...prev,
-          participants: payersList.map(p => p.name)
+          participants: currentList.participants
         }));
         setCategories(categoriesList);
       } catch (error) {
@@ -38,11 +46,14 @@ function AddExpenseForm({ onSubmit, currentUser }) {
       }
     };
     loadData();
-  }, [currentUser]);
+  }, [currentUser, currentList]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    if (!currentList) {
+      setError('No list selected');
+      return;
+    }
 
     if (!formData.payer.trim()) {
       setError('Please select or enter a payer');

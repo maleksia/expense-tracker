@@ -3,18 +3,26 @@ import AddExpenseForm from './AddExpenseForm';
 import ExpensesList from './ExpensesList';
 import DebtCalculator from './DebtCalculator';
 
-function RecentExpenses({ currentUser, expenses, handleAddExpense, handleDeleteExpense }) {
-  const recentExpenses = expenses.slice(0, 5); // Get 5 most recent
+function RecentExpenses({ currentUser, expenses, handleAddExpense, handleDeleteExpense, currentList }) {
+  const recentExpenses = expenses.slice(0, 5);
 
   return (
     <div>
-      <h2>Hello {currentUser}!</h2>
-      <AddExpenseForm onSubmit={handleAddExpense} currentUser={currentUser} />
-      <ExpensesList 
-        expenses={recentExpenses} 
+      <h2>{currentList?.name || 'Loading...'}</h2>
+      <AddExpenseForm
+        onSubmit={handleAddExpense}
+        currentUser={currentUser}
+        currentList={currentList}
+      />
+      <ExpensesList
+        expenses={recentExpenses}
         handleDeleteExpense={handleDeleteExpense}
       />
-      <DebtCalculator expenses={expenses} currentUser={currentUser} />
+      <DebtCalculator
+        expenses={expenses}
+        currentUser={currentUser}
+        currentList={currentList}
+      />
     </div>
   );
 }
