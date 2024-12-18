@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Navigate, useLocation } from 'react-router-dom';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import {
   fetchExpenses,
@@ -22,6 +22,7 @@ import ExpenseListsView from './components/lists/ExpenseListsView';
 
 function AppContent() {
   const { theme } = useTheme();
+  const location = useLocation();
   const [currentUser, setCurrentUser] = useState(null);
   const [currentList, setCurrentList] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
@@ -123,6 +124,7 @@ function AppContent() {
         <Navigation
           onLogout={handleLogout}
           currentList={currentList}
+          isListView={location.pathname.includes('/list/')}
         />
       )}
 
@@ -192,6 +194,14 @@ function AppContent() {
         } />
 
         <Route path="/settings" element={
+          <ProtectedRoute isAuthenticated={!!currentUser}>
+            <Settings
+              currentUser={currentUser}
+              currentList={currentList}
+            />
+          </ProtectedRoute>
+        } />
+        <Route path="/list/:listId/settings" element={
           <ProtectedRoute isAuthenticated={!!currentUser}>
             <Settings
               currentUser={currentUser}

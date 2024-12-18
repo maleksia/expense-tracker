@@ -2,13 +2,9 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 
-function Navigation({ onLogout, currentList }) {
+function Navigation({ onLogout, currentList, isListView }) {
   const { theme } = useTheme();
   const location = useLocation();
-
-  const isListContext = currentList && (
-    location.pathname.includes('/list/')
-  );
 
   const navStyle = {
     padding: '1rem',
@@ -34,7 +30,7 @@ function Navigation({ onLogout, currentList }) {
           <Link to="/" style={{ color: theme.primary }}>Home</Link>
         </li>
 
-        {isListContext && currentList && (
+        {isListView && currentList && (
           <>
             <li>
               <Link to={`/list/${currentList.id}`} style={{ color: theme.primary }}>
@@ -56,27 +52,22 @@ function Navigation({ onLogout, currentList }) {
                 Deleted Expenses
               </Link>
             </li>
+            <li>
+              <Link to={`/list/${currentList.id}/settings`} style={{ color: theme.primary }}>
+                Settings
+              </Link>
+            </li>
           </>
         )}
 
-        <li>
-          <Link to="/settings" style={{ color: theme.primary }}>Settings</Link>
-        </li>
+        {!isListView && (
+          <li>
+            <Link to="/settings" style={{ color: theme.primary }}>Settings</Link>
+          </li>
+        )}
 
         <li style={{ marginLeft: 'auto' }}>
-          <button
-            onClick={onLogout}
-            style={{
-              backgroundColor: theme.primary,
-              color: '#fff',
-              border: 'none',
-              padding: '0.5rem 1rem',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            Logout
-          </button>
+          <button onClick={onLogout}>Logout</button>
         </li>
       </ul>
     </nav>

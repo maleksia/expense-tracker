@@ -162,7 +162,7 @@ function NewListModal({ onSubmit, onClose, theme }) {
             Cancel
           </button>
           <button
-            onClick={handleSubmit}  // Change this line
+            onClick={handleSubmit}
             style={{
               padding: '10px 20px',
               backgroundColor: theme.primary,

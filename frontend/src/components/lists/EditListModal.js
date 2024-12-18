@@ -6,6 +6,18 @@ function EditListModal({ list, onSubmit, onClose, theme }) {
     participants: list.participants
   });
   const [participantInput, setParticipantInput] = useState('');
+  const [error, setError] = useState('');
+
+  const handleSubmit = () => {
+    setError('');
+
+    if (listData.participants.length === 0) {
+      setError('Please add at least one participant');
+      return;
+    }
+
+    onSubmit(listData);
+  };
 
   const handleAddParticipant = () => {
     if (participantInput && !listData.participants.includes(participantInput)) {
@@ -37,8 +49,8 @@ function EditListModal({ list, onSubmit, onClose, theme }) {
         maxWidth: '500px',
         boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
       }}>
-        <h3 style={{ color: theme.text, marginBottom: '20px' }}>Create New Expense List</h3>
-        
+        <h3 style={{ color: theme.text, marginBottom: '20px' }}>Edit {list.name}</h3>
+
         <input
           type="text"
           placeholder="List Name"
@@ -54,7 +66,7 @@ function EditListModal({ list, onSubmit, onClose, theme }) {
             color: theme.text
           }}
         />
-        
+
         <div style={{ marginBottom: '20px' }}>
           <div style={{ display: 'flex', gap: '10px' }}>
             <input
@@ -71,7 +83,7 @@ function EditListModal({ list, onSubmit, onClose, theme }) {
                 color: theme.text
               }}
             />
-            <button 
+            <button
               onClick={handleAddParticipant}
               style={{
                 padding: '10px 20px',
@@ -87,14 +99,14 @@ function EditListModal({ list, onSubmit, onClose, theme }) {
           </div>
         </div>
 
-        <div style={{ 
-          display: 'flex', 
-          flexWrap: 'wrap', 
+        <div style={{
+          display: 'flex',
+          flexWrap: 'wrap',
           gap: '10px',
-          marginBottom: '20px' 
+          marginBottom: '20px'
         }}>
           {listData.participants.map((p, i) => (
-            <span 
+            <span
               key={i}
               style={{
                 padding: '5px 10px',
@@ -124,6 +136,16 @@ function EditListModal({ list, onSubmit, onClose, theme }) {
             </span>
           ))}
         </div>
+        
+        {error && (
+          <div style={{
+            color: theme.error,
+            marginBottom: '20px',
+            fontSize: '14px'
+          }}>
+            {error}
+          </div>
+        )}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
           <button
@@ -140,7 +162,7 @@ function EditListModal({ list, onSubmit, onClose, theme }) {
             Cancel
           </button>
           <button
-            onClick={() => onSubmit(listData)}
+            onClick={handleSubmit}
             style={{
               padding: '10px 20px',
               backgroundColor: theme.primary,
