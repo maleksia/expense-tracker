@@ -2,10 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { initializeWebSocket, calculateDebtsRealTime } from '../../api';
 import { socket } from '../../api';
 import { useTheme } from '../../context/ThemeContext';
+import { useCurrency } from '../../context/CurrencyContext';
 
 function DebtCalculator({ currentUser, currentList }) {
   const { theme } = useTheme();
+  const { listCurrencies } = useCurrency();
   const [debts, setDebts] = useState({});
+
+  const currencySymbols = {
+    'EUR': '€',
+    'USD': '$',
+    'GBP': '£'
+  };
+
+  const currentCurrency = listCurrencies[currentList?.id] || 'EUR';
 
   useEffect(() => {
     const fetchDebts = async () => {
@@ -13,13 +23,13 @@ function DebtCalculator({ currentUser, currentList }) {
         console.log('No list ID available');
         return;
       }
-  
+
       try {
         console.log('Fetching debts for:', {
           currentUser,
           listId: currentList.id
         });
-  
+
         const result = await calculateDebtsRealTime(currentUser, currentList.id);
         console.log('Debt calculation result:', result);
         setDebts(result);
@@ -27,19 +37,19 @@ function DebtCalculator({ currentUser, currentList }) {
         console.error('Error fetching debts:', error);
       }
     };
-  
+
     fetchDebts();
-  
+
     // Update socket event to use list ID
     if (currentList?.id) {
       const eventName = `expensesUpdated_${currentUser}_${currentList.id}`;
       console.log('Socket event name:', eventName);
-      
+
       initializeWebSocket(currentUser, currentList.id, (updatedDebts) => {
         console.log('Received socket update:', updatedDebts);
         setDebts(updatedDebts);
       });
-  
+
       return () => {
         socket.off(eventName);
       };
@@ -92,7 +102,7 @@ function DebtCalculator({ currentUser, currentList }) {
                 fontWeight: 'bold',
                 color: amount > 1000 ? theme.error : theme.text
               }}>
-                {amount.toFixed(2)} €
+                {amount.toFixed(2)} {currencySymbols[currentCurrency]}
               </span>
             </div>
           ))

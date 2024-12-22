@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate, useLocation } from 'react-router-dom';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
+import { CurrencyProvider } from './context/CurrencyContext';
 import {
   fetchExpenses,
   deleteExpense,
@@ -19,6 +20,7 @@ import ErrorBoundary from './components/common/ErrorBoundary';
 import DeletedExpenses from './components/expenses/DeletedExpenses';
 import './styles/main.css';
 import ExpenseListsView from './components/lists/ExpenseListsView';
+import { LoadingSpinner, Notification, ConfirmDialog } from './components/common/index';
 
 function AppContent() {
   const { theme } = useTheme();
@@ -27,6 +29,9 @@ function AppContent() {
   const [currentList, setCurrentList] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [expenses, setExpenses] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [notification, setNotification] = useState(null);
+  const [confirmDialog, setConfirmDialog] = useState({ show: false, message: '' });
 
   useEffect(() => {
     if (currentUser && currentList) {
@@ -70,13 +75,27 @@ function AppContent() {
     }
   };
 
+  const showNotification = (message, type) => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 3000);
+  };
+
   const handleDeleteExpense = async (id) => {
-    try {
-      await deleteExpense(id);
-      setExpenses(prev => prev.filter(expense => expense.id !== id));
-    } catch (error) {
-      setErrorMessage('Failed to delete expense');
-    }
+    setConfirmDialog({
+      show: true,
+      message: 'Are you sure you want to delete this expense?',
+      onConfirm: async () => {
+        setLoading(true);
+        try {
+          await deleteExpense(id);
+          showNotification('Expense deleted successfully', 'success');
+        } catch (error) {
+          showNotification('Failed to delete expense', 'error');
+        }
+        setLoading(false);
+        setConfirmDialog({ show: false });
+      }
+    });
   };
 
   const handleRestore = async (id) => {
@@ -111,105 +130,121 @@ function AppContent() {
   };
 
   return (
-    <div style={{
-      maxWidth: '1200px',
-      margin: '0 auto',
-      padding: '0 1rem',
-      backgroundColor: theme.background,
-      color: theme.text,
-      minHeight: '100vh'
-    }}>
-
-      {currentUser && (
-        <Navigation
-          onLogout={handleLogout}
-          currentList={currentList}
-          isListView={location.pathname.includes('/list/')}
+    <div className="app-container">
+      {loading && <LoadingSpinner />}
+      {notification && (
+        <Notification
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification(null)}
         />
       )}
+      <ConfirmDialog
+        isOpen={confirmDialog.show}
+        message={confirmDialog.message}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => setConfirmDialog({ show: false })}
+      />
 
-      {/* Display errorMessage if exists */}
-      {errorMessage && (
-        <div style={{
-          backgroundColor: '#f8d7da',
-          color: '#721c24',
-          padding: '10px',
-          borderRadius: '4px',
-          margin: '10px 0'
-        }}>
-          {errorMessage}
-        </div>
-      )}
+      <div style={{
+        maxWidth: '1200px',
+        margin: '0 auto',
+        padding: '0 1rem',
+        backgroundColor: theme.background,
+        color: theme.text,
+        minHeight: '100vh'
+      }}>
+        {currentUser && (
+          <Navigation
+            onLogout={handleLogout}
+            currentList={currentList}
+            isListView={location.pathname.includes('/list/')}
+          />
+        )}
 
-      <Routes>
-        <Route path="/login" element={<AuthForm onLogin={handleLogin} />} />
+        {errorMessage && (
+          <div style={{
+            backgroundColor: '#f8d7da',
+            color: '#721c24',
+            padding: '10px',
+            borderRadius: '4px',
+            margin: '10px 0'
+          }}>
+            {errorMessage}
+          </div>
+        )}
 
-        {/* Home route - show expense lists */}
-        <Route path="/" element={
-          <ProtectedRoute isAuthenticated={!!currentUser}>
-            <ExpenseListsView
-              currentUser={currentUser}
-              onListSelect={handleListSelect}
-            />
-          </ProtectedRoute>
-        } />
+        <Routes>
+          <Route path="/login" element={<AuthForm onLogin={handleLogin} />} />
 
-        {/* List specific routes */}
-        <Route path="/list/:listId" element={
-          <ProtectedRoute isAuthenticated={!!currentUser}>
-            <RecentExpenses
-              currentUser={currentUser}
-              currentList={currentList}
-              expenses={expenses}
-              handleAddExpense={handleAddExpense}
-              handleDeleteExpense={handleDeleteExpense}
-            />
-          </ProtectedRoute>
-        } />
+          {/* Home route - show expense lists */}
+          <Route path="/" element={
+            <ProtectedRoute isAuthenticated={!!currentUser}>
+              <ExpenseListsView
+                currentUser={currentUser}
+                onListSelect={handleListSelect}
+              />
+            </ProtectedRoute>
+          } />
 
-        <Route path="/list/:listId/all" element={
-          <ProtectedRoute isAuthenticated={!!currentUser}>
-            <AllExpenses
-              currentUser={currentUser}
-              expenses={expenses}
-              handleDeleteExpense={handleDeleteExpense}
-            />
-          </ProtectedRoute>
-        } />
+          {/* List specific routes */}
+          <Route path="/list/:listId" element={
+            <ProtectedRoute isAuthenticated={!!currentUser}>
+              <RecentExpenses
+                currentUser={currentUser}
+                currentList={currentList}
+                expenses={expenses}
+                handleAddExpense={handleAddExpense}
+                handleDeleteExpense={handleDeleteExpense}
+              />
+            </ProtectedRoute>
+          } />
 
-        <Route path="/list/:listId/analytics" element={
-          <ProtectedRoute isAuthenticated={!!currentUser}>
-            <AnalyticsDashboard expenses={expenses} />
-          </ProtectedRoute>
-        } />
+          <Route path="/list/:listId/all" element={
+            <ProtectedRoute isAuthenticated={!!currentUser}>
+              <AllExpenses
+                currentUser={currentUser}
+                expenses={expenses}
+                handleDeleteExpense={handleDeleteExpense}
+                currentList={currentList}
+              />
+            </ProtectedRoute>
+          } />
 
-        <Route path="/list/:listId/deleted" element={
-          <ProtectedRoute isAuthenticated={!!currentUser}>
-            <DeletedExpenses
-              currentUser={currentUser}
-              currentList={currentList}
-              onRestore={handleRestore}
-            />
-          </ProtectedRoute>
-        } />
+          <Route path="/list/:listId/analytics" element={
+            <ProtectedRoute isAuthenticated={!!currentUser}>
+              <AnalyticsDashboard expenses={expenses} />
+            </ProtectedRoute>
+          } />
 
-        <Route path="/settings" element={
-          <ProtectedRoute isAuthenticated={!!currentUser}>
-            <Settings
-              currentUser={currentUser}
-              currentList={currentList}
-            />
-          </ProtectedRoute>
-        } />
-        <Route path="/list/:listId/settings" element={
-          <ProtectedRoute isAuthenticated={!!currentUser}>
-            <Settings
-              currentUser={currentUser}
-              currentList={currentList}
-            />
-          </ProtectedRoute>
-        } />
-      </Routes>
+          <Route path="/list/:listId/deleted" element={
+            <ProtectedRoute isAuthenticated={!!currentUser}>
+              <DeletedExpenses
+                currentUser={currentUser}
+                currentList={currentList}
+                onRestore={handleRestore}
+              />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/settings" element={
+            <ProtectedRoute isAuthenticated={!!currentUser}>
+              <Settings
+                currentUser={currentUser}
+                currentList={currentList}
+              />
+            </ProtectedRoute>
+          } />
+          <Route path="/list/:listId/settings" element={
+            <ProtectedRoute isAuthenticated={!!currentUser}>
+              <Settings
+                currentUser={currentUser}
+                currentList={currentList}
+              />
+            </ProtectedRoute>
+          } />
+        </Routes>
+      </div>
     </div>
   );
 }
@@ -217,11 +252,13 @@ function AppContent() {
 function App() {
   return (
     <ThemeProvider>
-      <Router>
-        <ErrorBoundary>
-          <AppContent />
-        </ErrorBoundary>
-      </Router>
+      <CurrencyProvider>
+        <Router>
+          <ErrorBoundary>
+            <AppContent />
+          </ErrorBoundary>
+        </Router>
+      </CurrencyProvider>
     </ThemeProvider>
   );
 }

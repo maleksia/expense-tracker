@@ -67,7 +67,24 @@ function Navigation({ onLogout, currentList, isListView }) {
         )}
 
         <li style={{ marginLeft: 'auto' }}>
-          <button onClick={onLogout}>Logout</button>
+          <button
+            onClick={onLogout}
+            style={{
+              backgroundColor: theme.primary,
+              color: '#fff',
+              border: 'none',
+              padding: '0.5rem 1rem',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              transition: 'background-color 0.2s',
+              fontSize: '14px',
+              fontWeight: '500'
+            }}
+            onMouseOver={(e) => e.target.style.backgroundColor = theme.primaryDark}
+            onMouseOut={(e) => e.target.style.backgroundColor = theme.primary}
+          >
+            Logout
+          </button>
         </li>
       </ul>
     </nav>

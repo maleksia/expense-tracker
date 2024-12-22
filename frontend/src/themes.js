@@ -1,4 +1,3 @@
-// src/themes.js
 export const themes = {
   light: {
     primary: '#007bff',
@@ -7,7 +6,9 @@ export const themes = {
     text: '#333333',
     border: '#dee2e6',
     error: '#dc3545',
-    success: '#28a745'
+    'error-dark': '#bd2130',
+    success: '#28a745',
+    'surface-hover': '#e9ecef'
   },
   dark: {
     primary: '#0d6efd',
@@ -16,7 +17,9 @@ export const themes = {
     text: '#ffffff',
     border: '#404040',
     error: '#dc3545',
-    success: '#28a745'
+    'error-dark': '#bd2130',
+    success: '#28a745',
+    'surface-hover': '#2d2d2d'
   },
   forest: {
     primary: '#2e7d32',
@@ -25,6 +28,8 @@ export const themes = {
     text: '#1b5e20',
     border: '#81c784',
     error: '#c62828',
-    success: '#2e7d32'
+    'error-dark': '#b71c1c',
+    success: '#2e7d32',
+    'surface-hover': '#e8f5e9'
   }
 };

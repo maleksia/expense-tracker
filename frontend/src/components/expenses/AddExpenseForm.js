@@ -78,7 +78,6 @@ function AddExpenseForm({ onSubmit, currentUser, currentList }) {
     setIsSubmitting(true);
 
     try {
-      console.log('Submitting expense:', formData); // Debug log
       const success = await onSubmit(formData);
       if (success) {
         setFormData({
@@ -117,7 +116,7 @@ function AddExpenseForm({ onSubmit, currentUser, currentList }) {
 
       <form onSubmit={handleSubmit} className="expense-form-grid">
         <div className="form-group">
-          <label className="form-label">Payer</label>
+          <label className="form-label" style={{ color: theme.text }}>Payer</label>
           <PayerSelector
             payers={payers}
             selectedPayer={formData.payer}
@@ -126,7 +125,7 @@ function AddExpenseForm({ onSubmit, currentUser, currentList }) {
         </div>
 
         <div className="form-group amount-field">
-          <label className="form-label">Amount</label>
+          <label className="form-label" style={{ color: theme.text }}>Amount</label>
           <input
             type="number"
             step="0.01"
@@ -143,7 +142,7 @@ function AddExpenseForm({ onSubmit, currentUser, currentList }) {
         </div>
 
         <div className="form-group">
-          <label className="form-label">Category</label>
+          <label className="form-label" style={{ color: theme.text }}>Category</label>
           <CategorySelector
             categories={categories}
             selectedCategory={formData.category}
@@ -152,7 +151,7 @@ function AddExpenseForm({ onSubmit, currentUser, currentList }) {
         </div>
 
         <div className="form-group">
-          <label className="form-label">Description</label>
+          <label className="form-label" style={{ color: theme.text }}>Description</label>
           <input
             type="text"
             value={formData.description}
@@ -168,7 +167,7 @@ function AddExpenseForm({ onSubmit, currentUser, currentList }) {
         </div>
 
         <div className="form-group date-field">
-          <label className="form-label">Date</label>
+          <label className="form-label" style={{ color: theme.text }}>Date</label>
           <input
             type="date"
             value={formData.date}
@@ -190,7 +189,7 @@ function AddExpenseForm({ onSubmit, currentUser, currentList }) {
             gap: '8px',
             marginBottom: '8px'
           }}>
-            <label className="form-label">Participants</label>
+            <label className="form-label" style={{ color: theme.text }}>Participants</label>
             <div
               style={{
                 display: 'inline-block',

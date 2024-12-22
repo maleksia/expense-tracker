@@ -1,14 +1,24 @@
 import React, { useState } from 'react';
 import { useTheme } from '../../context/ThemeContext';
+import { useCurrency } from '../../context/CurrencyContext';
 
-function AllExpenses({ currentUser, expenses, handleDeleteExpense }) {
+function AllExpenses({ currentUser, expenses, handleDeleteExpense, currentList }) {
   const [selectedPayer, setSelectedPayer] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const { theme } = useTheme();
+  const { listCurrencies } = useCurrency();
   const [sortConfig, setSortConfig] = useState({
     key: 'date',
     direction: 'desc'
   });
+
+  const currencySymbols = {
+    'EUR': '€',
+    'USD': '$',
+    'GBP': '£'
+  };
+
+  const currentCurrency = listCurrencies[currentList?.id] || 'EUR';
 
   // Sorting function
   const sortedExpenses = [...expenses].sort((a, b) => {
@@ -124,7 +134,7 @@ function AllExpenses({ currentUser, expenses, handleDeleteExpense }) {
             }}>
               <td>{new Date(expense.date).toLocaleDateString()}</td>
               <td>{expense.payer}</td>
-              <td>{expense.amount.toFixed(2)} €</td>
+              <td>{expense.amount.toFixed(2)} {currencySymbols[currentCurrency]}</td>
               <td>{expense.description}</td>
               <td>{expense.category}</td>
               <td>

@@ -1,6 +1,5 @@
 import React from 'react';
 
-// Päivämäärän muotoilu
 function formatDate(dateString) {
   const options = { day: '2-digit', month: '2-digit', year: 'numeric' };
   const date = new Date(dateString);
@@ -11,7 +10,7 @@ function ExpensesList({ expenses, handleDeleteExpense }) {
   return (
     <div>
       <h2>Recent Additions:</h2>
-      <table>
+      <table className='expenses-table'>
         <thead>
           <tr>
             <th>Payer</th>
@@ -27,13 +26,15 @@ function ExpensesList({ expenses, handleDeleteExpense }) {
           {expenses.map((expense) => (
             <tr key={expense.id}>
               <td>{expense.payer}</td>
-              <td>{expense.amount}</td>
+              <td className="amount-cell">{expense.amount}</td>
               <td>{expense.description}</td>
               <td>{expense.category}</td>
-              <td>{formatDate(expense.date)}</td>
+              <td className="date-cell">{formatDate(expense.date)}</td>
               <td>{expense.participants?.join(', ') || expense.payer}</td>
               <td>
-                <button onClick={() => handleDeleteExpense(expense.id)}>
+                <button
+                  className='delete-button'
+                  onClick={() => handleDeleteExpense(expense.id)}>
                   Delete
                 </button>
               </td>
