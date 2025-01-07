@@ -29,7 +29,6 @@ def payers():
     try:
         if request.method == 'POST':
             data = request.get_json()
-            print("Received payer data:", data)  # Debug log
 
             if not data:
                 return jsonify({'error': 'No data provided'}), 400
@@ -429,7 +428,6 @@ def get_lists():
 def create_list():
     try:
         data = request.get_json()
-        print("Received data:", data)  # Debug log
         
         new_list = ExpenseList(
             name=data['name'],
@@ -451,7 +449,6 @@ def create_list():
         
     except Exception as e:
         db.session.rollback()
-        print("Error creating list:", str(e))  # Debug log
         return jsonify({"error": str(e)}), 500
 
 @app.route('/lists', methods=['OPTIONS'])

@@ -1,10 +1,9 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 
 function Navigation({ onLogout, currentList, isListView }) {
   const { theme } = useTheme();
-  const location = useLocation();
 
   const navStyle = {
     padding: '1rem',

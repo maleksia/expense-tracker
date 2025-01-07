@@ -7,7 +7,6 @@ function ListSettings({ currentUser, currentList }) {
   const { currentTheme, setCurrentTheme, theme } = useTheme();
   const [newCategory, setNewCategory] = useState('');
   const [categories, setCategories] = useState([]);
-  const [currency, setCurrency] = useState('EUR');
   const { listCurrencies, setCurrencyForList } = useCurrency();
 
   const currencies = [
