@@ -4,6 +4,7 @@ import { useTheme } from '../../context/ThemeContext';
 import NewListModal from './NewListModal';
 import { fetchLists, createList, updateList, API } from '../../api';
 import EditListModal from './EditListModal';
+import { FaPencilAlt, FaTrash, FaUsers, FaCalendarAlt, FaExclamationTriangle } from 'react-icons/fa';
 
 function ExpenseListsView({ currentUser, onListSelect }) {
     const { theme } = useTheme();
@@ -71,130 +72,125 @@ function ExpenseListsView({ currentUser, onListSelect }) {
         }
     };
 
-    if (loading) return <div>Loading...</div>;
+    if (loading) return <div className="loading">Loading...</div>;
 
     return (
-        <div style={{
+        <div style={{ 
+            backgroundColor: theme.background,
+            color: theme.text,
             padding: '20px',
-            maxWidth: '1200px',
-            margin: '0 auto'
+            minHeight: '100vh'
         }}>
-            <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '20px'
-            }}>
-                <div>
+            <div className="lists-header">
+                <div className="header-text">
                     <h1 style={{ 
-                        color: theme.text,
-                        marginBottom: '8px' 
-                    }}>
-                        Hello {currentUser}!
-                    </h1>
+                        color: theme.textHighlight,
+                        fontSize: '2.5rem',
+                        fontWeight: '700',
+                        marginBottom: '10px',
+                        textShadow: theme.currentTheme === 'dark' ? '0 2px 4px rgba(0,0,0,0.5)' : 'none'
+                    }}>Welcome, {currentUser}!</h1>
                     <h2 style={{ 
-                        color: theme.text,
-                        opacity: 0.8,
-                        fontWeight: 'normal'
-                    }}>
-                        Your Expense Lists
-                    </h2>
+                        color: theme.textSecondary,
+                        fontSize: '1.2rem',
+                        opacity: 0.9,
+                        marginBottom: '20px'
+                    }}>Manage your shared expenses</h2>
                 </div>
-                <button
-                    onClick={() => setShowNewListModal(true)}
-                    style={{
-                        backgroundColor: theme.primary,
-                        color: '#fff',
-                        border: 'none',
-                        padding: '10px 20px',
-                        borderRadius: '4px',
-                        cursor: 'pointer'
-                    }}
-                >
-                    Create New List
-                </button>
             </div>
 
-            {error && (
-                <p style={{ color: theme.error, marginBottom: '20px' }}>{error}</p>
-            )}
+            {error && <div className="error-message">{error}</div>}
 
-            <div style={{
+            <div style={{ 
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-                gap: '20px'
+                gap: '20px',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))'
             }}>
                 {lists.map(list => (
                     <div
                         key={list.id}
+                        className="list-card"
                         onClick={() => handleSelectList(list.id)}
                         style={{
                             backgroundColor: theme.surface,
+                            color: theme.text,
                             padding: '20px',
                             borderRadius: '8px',
+                            border: `1px solid ${theme.border}`,
+                            transition: 'transform 0.2s',
                             cursor: 'pointer'
                         }}
                     >
-                        <div style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            marginBottom: '10px'
-                        }}>
-                            <h3 style={{ color: theme.text, margin: 0 }}>{list.name}</h3>
-                            <div style={{ display: 'flex', gap: '8px' }}>
+                        <div className="list-card-header">
+                            <h3 className="list-card-title" style={{ color: theme.text }}>{list.name}</h3>
+                            <div className="list-card-actions">
                                 <button
+                                    className="list-card-btn edit-btn"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         setEditingList(list);
                                     }}
-                                    style={{
-                                        backgroundColor: theme.primary,
-                                        color: '#fff',
-                                        border: 'none',
-                                        padding: '5px 10px',
-                                        borderRadius: '4px',
-                                        cursor: 'pointer'
-                                    }}
+                                    aria-label="Edit list"
                                 >
-                                    Edit
+                                    <FaPencilAlt />
                                 </button>
                                 <button
+                                    className="list-card-btn delete-btn"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         setListToDelete(list);
                                         setShowDeleteConfirm(true);
                                     }}
-                                    style={{
-                                        backgroundColor: theme.error,
-                                        color: '#fff',
-                                        border: 'none',
-                                        padding: '5px 10px',
-                                        borderRadius: '4px',
-                                        cursor: 'pointer'
-                                    }}
+                                    aria-label="Delete list"
                                 >
-                                    Delete
+                                    <FaTrash />
                                 </button>
-
                             </div>
                         </div>
-                        <p style={{ color: theme.text, opacity: 0.7 }}>
-                            {list.participants?.length || 0}
-                            {list.participants?.length === 1 ? ' participant:' : ' participants:'}
-                            <br />
-                            {list.participants?.map((participant, index) => (
-                                <span key={index}>
-                                    {participant}
-                                    {index < list.participants.length - 1 ? ', ' : ''}
-                                </span>
-                            ))}
-                        </p>
-                        <p style={{ color: theme.text, opacity: 0.7 }}>
-                            Created: {new Date(list.createdAt).toLocaleDateString()}
-                        </p>
+                        <div className="list-card-info">
+                            <p>
+                                <FaUsers style={{ marginRight: '8px' }} />
+                                {list.participants?.map((participant, index) => (
+                                    <span key={index} className="participants-tag" style={{
+                                        backgroundColor: theme.participantTag,
+                                        color: theme.textHighlight,
+                                        padding: '4px 8px',
+                                        borderRadius: '12px',
+                                        margin: '2px',
+                                        fontSize: '0.85rem'
+                                    }}>
+                                        {participant}
+                                    </span>
+                                ))}
+                            </p>
+                            <p>
+                                <FaCalendarAlt style={{ marginRight: '8px' }} />
+                                Created: {new Date(list.createdAt).toLocaleDateString()}
+                            </p>
+                        </div>
                     </div>
                 ))}
+
+                <div 
+                    onClick={() => setShowNewListModal(true)}
+                    style={{
+                        backgroundColor: theme.surface,
+                        color: theme.primary,
+                        padding: '20px',
+                        borderRadius: '8px',
+                        border: `2px dashed ${theme.border}`,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        minHeight: '200px'
+                    }}
+                >
+                    <div style={{ textAlign: 'center' }}>
+                        <span style={{ fontSize: '24px', marginBottom: '10px', display: 'block' }}>+</span>
+                        <span>Create New List</span>
+                    </div>
+                </div>
             </div>
 
             {editingList && (
@@ -221,30 +217,58 @@ function ExpenseListsView({ currentUser, onListSelect }) {
                     left: 0,
                     right: 0,
                     bottom: 0,
-                    backgroundColor: 'rgba(0,0,0,0.5)',
+                    backgroundColor: 'rgba(0, 0, 0, 0.75)',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center'
+                    justifyContent: 'center',
+                    zIndex: 1000
                 }}>
                     <div style={{
                         backgroundColor: theme.surface,
+                        borderRadius: '12px',
                         padding: '24px',
-                        borderRadius: '8px',
                         maxWidth: '400px',
-                        width: '90%'
+                        width: '90%',
+                        boxShadow: '0 8px 16px rgba(0, 0, 0, 0.2)',
+                        border: `1px solid ${theme.border}`
                     }}>
-                        <h3 style={{ color: theme.text }}>Delete List</h3>
-                        <p style={{ color: theme.text }}>
-                            Are you sure you want to delete "{listToDelete.name}"?
-                        </p>
-                        <p style={{ color: theme.text }}>
-                            This will also delete all expenses in this list.
-                        </p>
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                            marginBottom: '20px',
+                            color: theme.error
+                        }}>
+                            <FaExclamationTriangle size={24} />
+                            <h3 style={{ 
+                                margin: 0,
+                                color: theme.textHighlight,
+                                fontSize: '1.5rem'
+                            }}>Delete List</h3>
+                        </div>
+
+                        <div style={{
+                            marginBottom: '24px',
+                            color: theme.textSecondary
+                        }}>
+                            <p style={{ marginBottom: '12px' }}>
+                                Are you sure you want to delete "<span style={{ color: theme.text, fontWeight: '500' }}>{listToDelete.name}</span>"?
+                            </p>
+                            <p style={{
+                                backgroundColor: theme.currentTheme === 'dark' ? '#2d2d2d' : '#f8f9fa',
+                                padding: '12px',
+                                borderRadius: '6px',
+                                borderLeft: `4px solid ${theme.error}`,
+                                margin: '16px 0'
+                            }}>
+                                This action cannot be undone. All expenses in this list will be permanently deleted.
+                            </p>
+                        </div>
+
                         <div style={{
                             display: 'flex',
                             justifyContent: 'flex-end',
-                            gap: '12px',
-                            marginTop: '24px'
+                            gap: '12px'
                         }}>
                             <button
                                 onClick={() => {
@@ -253,9 +277,9 @@ function ExpenseListsView({ currentUser, onListSelect }) {
                                 }}
                                 style={{
                                     padding: '8px 16px',
-                                    borderRadius: '4px',
+                                    borderRadius: '6px',
                                     border: `1px solid ${theme.border}`,
-                                    backgroundColor: theme.surface,
+                                    backgroundColor: 'transparent',
                                     color: theme.text,
                                     cursor: 'pointer'
                                 }}
@@ -266,14 +290,14 @@ function ExpenseListsView({ currentUser, onListSelect }) {
                                 onClick={() => handleDeleteList(listToDelete.id)}
                                 style={{
                                     padding: '8px 16px',
-                                    borderRadius: '4px',
+                                    borderRadius: '6px',
                                     border: 'none',
                                     backgroundColor: theme.error,
-                                    color: '#fff',
+                                    color: 'white',
                                     cursor: 'pointer'
                                 }}
                             >
-                                Delete
+                                Delete List
                             </button>
                         </div>
                     </div>

@@ -2,25 +2,19 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { baseApiUrl } from '../../api/config';
-// import { useTheme } from '../../context/ThemeContext';
+import { FaChartLine, FaCalculator, FaHistory } from 'react-icons/fa';
 
 function AuthForm({ onLogin }) {
-  // const { theme } = useTheme();
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({ username: '', password: '' });
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // const handleChange = (e) => {
-  //   setFormData({ ...formData, [e.target.name]: e.target.value });
-  // };
-
   const handleSubmit = (e) => {
     e.preventDefault();
     setLoading(true);
     const url = isLogin ? '/login' : '/register';
-
 
     axios.post(`${baseApiUrl}${url}`, JSON.stringify(formData), {
       headers: {
@@ -31,7 +25,7 @@ function AuthForm({ onLogin }) {
       setLoading(false);
       setMessage(response.data.message);
       if (isLogin) {
-        onLogin(formData.username); // Call onLogin with the username
+        onLogin(formData.username);
         navigate('/');
       }
     })
@@ -49,23 +43,23 @@ function AuthForm({ onLogin }) {
   return (
     <div className="landing-page">
       <div className="welcome-section">
-        <h1>Welcome to ExpenseShare</h1>
+        <h1>Simplify Your Shared Expenses</h1>
         <p className="app-description">
-          Track shared expenses, split bills, and manage debts with ease. 
-          Perfect for couples, roommates, or friends who share expenses.
+          ExpenseShare makes it effortless to track, split, and manage shared expenses with anyone. 
+          Say goodbye to complicated spreadsheets and awkward money conversations.
         </p>
         <div className="features-list">
           <div className="feature-item">
-            <h3>Track Expenses</h3>
-            <p>Add and manage shared expenses easily</p>
+            <h3><FaChartLine /> Track Expenses</h3>
+            <p>Record and categorize shared expenses in real-time with an intuitive interface</p>
           </div>
           <div className="feature-item">
-            <h3>Calculate Debts</h3>
-            <p>See who owes what in real-time</p>
+            <h3><FaCalculator /> Smart Splitting</h3>
+            <p>Automatically calculate who owes what with precise splitting algorithms</p>
           </div>
           <div className="feature-item">
-            <h3>Expense History</h3>
-            <p>View and manage past expenses</p>
+            <h3><FaHistory /> Complete History</h3>
+            <p>Access detailed transaction history and generate expense reports anytime</p>
           </div>
         </div>
       </div>

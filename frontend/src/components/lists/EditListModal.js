@@ -11,6 +11,11 @@ function EditListModal({ list, onSubmit, onClose, theme }) {
   const handleSubmit = () => {
     setError('');
 
+    if (!listData.name.trim()) {
+      setError('Please enter a list name');
+      return;
+    }
+
     if (listData.participants.length === 0) {
       setError('Please add at least one participant');
       return;
@@ -55,6 +60,7 @@ function EditListModal({ list, onSubmit, onClose, theme }) {
           type="text"
           placeholder="List Name"
           value={listData.name}
+          maxLength={25}
           onChange={(e) => setListData({ ...listData, name: e.target.value })}
           style={{
             width: '100%',
@@ -73,6 +79,7 @@ function EditListModal({ list, onSubmit, onClose, theme }) {
               type="text"
               placeholder="Add participant"
               value={participantInput}
+              maxLength={20}
               onChange={(e) => setParticipantInput(e.target.value)}
               style={{
                 flex: 1,

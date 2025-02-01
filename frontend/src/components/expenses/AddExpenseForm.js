@@ -56,7 +56,7 @@ function AddExpenseForm({ onSubmit, currentUser, currentList }) {
     }
 
     if (!formData.payer.trim()) {
-      setError('Please select or enter a payer');
+      setError('Please select a payer');
       return;
     }
 
@@ -98,25 +98,32 @@ function AddExpenseForm({ onSubmit, currentUser, currentList }) {
   };
 
   return (
-    <div className="expense-form-card" style={{
-      backgroundColor: theme.surface,
-      borderRadius: 'var(--radius-lg)',
-      boxShadow: 'var(--shadow-md)',
-      padding: 'var(--spacing-xl)',
-      marginBottom: 'var(--spacing-xl)'
-    }}>
-      <h2 style={{
-        marginBottom: 'var(--spacing-lg)',
-        color: theme.text,
-        fontSize: '1.5rem',
-        fontWeight: '600'
-      }}>
-        Add New Expense
-      </h2>
+    <div className="component-container">
+      <div className="component-header">
+        <h2 className="component-title">Add New Expense</h2>
+      </div>
 
-      <form onSubmit={handleSubmit} className="expense-form-grid">
-        <div className="form-group">
-          <label className="form-label" style={{ color: theme.text }}>Payer</label>
+      <form onSubmit={handleSubmit} className="expense-form-grid" style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(3, 1fr)',
+        gap: '32px',
+        rowGap: '40px',
+        marginTop: '24px',
+        padding: '8px'
+      }}>
+        {/* First row */}
+        <div className="form-group" style={{ 
+          gridColumn: 'span 1',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px'
+        }}>
+          <label className="form-label" style={{ 
+            color: theme.textSecondary,
+            marginBottom: '8px',
+            display: 'block',
+            fontSize: '0.9rem'
+          }}>Payer</label>
           <PayerSelector
             payers={payers}
             selectedPayer={formData.payer}
@@ -124,25 +131,33 @@ function AddExpenseForm({ onSubmit, currentUser, currentList }) {
           />
         </div>
 
-        <div className="form-group amount-field">
-          <label className="form-label" style={{ color: theme.text }}>Amount</label>
+        <div className="form-group" style={{ gridColumn: 'span 1' }}>
+          <label className="form-label" style={{ 
+            color: theme.textSecondary,
+            marginBottom: '8px',
+            display: 'block',
+            fontSize: '0.9rem'
+          }}>Amount</label>
           <input
             type="number"
             step="0.01"
             value={formData.amount}
             onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
             required
-            className="form-input"
             style={{
+              width: '100%',
+              padding: '10px 12px',
               backgroundColor: theme.background,
               color: theme.text,
-              border: `1px solid ${theme.border}`
+              border: `1px solid ${theme.border}`,
+              borderRadius: '6px',
+              fontSize: '1rem'
             }}
           />
         </div>
 
-        <div className="form-group">
-          <label className="form-label" style={{ color: theme.text }}>Category</label>
+        <div className="form-group" style={{ gridColumn: 'span 1' }}>
+          <label className="form-label" style={{ color: theme.textSecondary, marginBottom: '8px', display: 'block', fontSize: '0.9rem' }}>Category</label>
           <CategorySelector
             categories={categories}
             selectedCategory={formData.category}
@@ -150,46 +165,53 @@ function AddExpenseForm({ onSubmit, currentUser, currentList }) {
           />
         </div>
 
-        <div className="form-group">
-          <label className="form-label" style={{ color: theme.text }}>Description</label>
+        {/* Second row */}
+        <div className="form-group" style={{ gridColumn: 'span 1' }}>
+          <label className="form-label" style={{ color: theme.textSecondary, marginBottom: '8px', display: 'block', fontSize: '0.9rem' }}>Description</label>
           <input
             type="text"
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             required
-            className="form-input"
             style={{
+              width: '100%',
+              padding: '10px 12px',
               backgroundColor: theme.background,
               color: theme.text,
-              border: `1px solid ${theme.border}`
+              border: `1px solid ${theme.border}`,
+              borderRadius: '6px',
+              fontSize: '1rem'
             }}
           />
         </div>
 
-        <div className="form-group date-field">
-          <label className="form-label" style={{ color: theme.text }}>Date</label>
+        <div className="form-group" style={{ gridColumn: 'span 1' }}>
+          <label className="form-label" style={{ color: theme.textSecondary, marginBottom: '8px', display: 'block', fontSize: '0.9rem' }}>Date</label>
           <input
             type="date"
             value={formData.date}
             onChange={(e) => setFormData({ ...formData, date: e.target.value })}
             required
-            className="form-input"
             style={{
+              width: '100%',
+              padding: '10px 12px',
               backgroundColor: theme.background,
               color: theme.text,
-              border: `1px solid ${theme.border}`
+              border: `1px solid ${theme.border}`,
+              borderRadius: '6px',
+              fontSize: '1rem'
             }}
           />
         </div>
 
-        <div className="form-group">
+        <div className="form-group" style={{ gridColumn: 'span 1' }}>
           <div style={{
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
             marginBottom: '8px'
           }}>
-            <label className="form-label" style={{ color: theme.text }}>Participants</label>
+            <label className="form-label" style={{ color: theme.textSecondary, fontSize: '0.9rem' }}>Participants</label>
             <div
               style={{
                 display: 'inline-block',
@@ -201,8 +223,7 @@ function AddExpenseForm({ onSubmit, currentUser, currentList }) {
                 fontSize: '12px',
                 textAlign: 'center',
                 lineHeight: '16px',
-                cursor: 'help',
-                position: 'relative'
+                cursor: 'help'
               }}
               title="Choose who participates in splitting this expense. By default, all list members are included. Deselect members who don't participate in this expense."
             >
@@ -219,12 +240,19 @@ function AddExpenseForm({ onSubmit, currentUser, currentList }) {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="submit-button"
           style={{
             backgroundColor: theme.primary,
             color: '#fff',
+            padding: '12px 24px',
+            border: 'none',
+            borderRadius: '6px',
+            fontSize: '1rem',
+            fontWeight: '500',
+            cursor: 'pointer',
             opacity: isSubmitting ? 0.7 : 1,
-            gridColumn: '1 / -1'
+            transition: 'transform 0.2s, opacity 0.2s',
+            gridColumn: '1 / -1',
+            marginTop: '32px'
           }}
         >
           {isSubmitting ? 'Adding...' : 'Add Expense'}
@@ -232,7 +260,14 @@ function AddExpenseForm({ onSubmit, currentUser, currentList }) {
       </form>
 
       {error && (
-        <div className="error-message" style={{ color: theme.error }}>
+        <div style={{ 
+          color: theme.error,
+          backgroundColor: `${theme.error}15`,
+          padding: '12px',
+          borderRadius: '6px',
+          marginTop: '16px',
+          fontSize: '0.9rem'
+        }}>
           {error}
         </div>
       )}

@@ -1,17 +1,20 @@
-from flask import Flask, request, jsonify
+import os
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_socketio import SocketIO
 from db import db
 from models import User, Expense, Payer, Category, DeletedExpense, ExpenseList, ListParticipant
+from sqlalchemy.exc import SQLAlchemyError
 
-app = Flask(__name__, static_folder='build', static_url_path='')
+app = Flask(__name__, static_folder='../frontend/build', static_url_path='/')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///expenses.db'
 db.init_app(app)
 CORS(app, resources={
     r"/*": {
-        "origins": ["http://localhost:3000"],
+        "origins": '*',
+        "supports_credentials": True,
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type"]
     }
@@ -71,6 +74,10 @@ def payers():
             'name': p.name
         } for p in payers])
 
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print(f"Database error in payers endpoint: {str(e)}")
+        return jsonify({'error': 'Database error occurred'}), 500
     except Exception as e:
         db.session.rollback()
         print(f"Error in payers endpoint: {str(e)}")
@@ -167,6 +174,11 @@ def add_expense():
         socketio.emit(f'expensesUpdated_{data["username"]}_{data["list_id"]}', debts)
         
         return jsonify(expense_dict), 201
+    
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print(f"Database error in add_expense endpoint: {str(e)}")
+        return jsonify({"error": "Database error occurred"}), 500
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
@@ -246,6 +258,10 @@ def delete_expense(id):
         db.session.commit()
         
         return jsonify({"message": "Expense moved to trash"}), 200
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print(f"Database error in delete_expense endpoint: {str(e)}")
+        return jsonify({"error": "Database error occurred"}), 500
     except Exception as e:
         db.session.rollback()
         print(f"Error deleting expense: {str(e)}")
@@ -254,6 +270,12 @@ def delete_expense(id):
 
 @app.route('/register', methods=['POST', 'OPTIONS'])
 def register():
+    if request.method == 'OPTIONS':
+        response = jsonify({'message': 'OK'})
+        response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        return response
+
     data = request.get_json()
     if not data.get('username') or not data.get('password'):
         return jsonify({"error": "Username and password are required"}), 400
@@ -267,15 +289,18 @@ def register():
         db.session.add(new_user)
         db.session.commit()
         return jsonify({"message": "User created successfully!"}), 201
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print(f"Database error in register endpoint: {str(e)}")
+        return jsonify({"error": "Database error occurred"}), 500
     except Exception as e:
         return jsonify({"error": "Username already exists"}), 400
 
 @app.route('/login', methods=['POST', 'OPTIONS'])
 def login():
     if request.method == 'OPTIONS':
-        # Handle preflight request
         response = jsonify({'message': 'OK'})
-        response.headers.add('Access-Control-Allow-Methods', 'POST')
+        response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
         return response
 
@@ -295,6 +320,9 @@ def login():
                 'error': 'Invalid username or password'
             }), 401
 
+    except SQLAlchemyError as e:
+        print(f"Database error in login endpoint: {str(e)}")
+        return jsonify({'error': 'Database error occurred'}), 500
     except Exception as e:
         print("Login error:", e)
         return jsonify({
@@ -332,6 +360,10 @@ def add_category():
         db.session.add(new_category)
         db.session.commit()
         return jsonify(new_category.as_dict()), 201
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print(f"Database error in add_category endpoint: {str(e)}")
+        return jsonify({"error": "Database error occurred"}), 500
     except Exception as e:
         db.session.rollback()
         print(f"Error adding category: {str(e)}")
@@ -361,6 +393,10 @@ def delete_category(id):
         db.session.delete(category)
         db.session.commit()
         return jsonify({"message": "Category deleted successfully"}), 200
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print(f"Database error in delete_category endpoint: {str(e)}")
+        return jsonify({"error": "Database error occurred"}), 500
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
@@ -411,6 +447,10 @@ def restore_expense(id):
         db.session.delete(deleted)
         db.session.commit()
         return jsonify(expense.as_dict()), 200
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print(f"Database error in restore_expense endpoint: {str(e)}")
+        return jsonify({"error": "Database error occurred"}), 500
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
@@ -447,6 +487,10 @@ def create_list():
         db.session.commit()
         return jsonify(new_list.as_dict()), 201
         
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print(f"Database error in create_list endpoint: {str(e)}")
+        return jsonify({"error": "Database error occurred"}), 500
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
@@ -475,6 +519,10 @@ def update_list(list_id):
         
         db.session.commit()
         return jsonify(expense_list.as_dict())
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print(f"Database error in update_list endpoint: {str(e)}")
+        return jsonify({"error": "Database error occurred"}), 500
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
@@ -504,21 +552,33 @@ def delete_list(list_id):
             db.session.rollback()
             return jsonify({"error": f"Error during deletion: {str(e)}"}), 500
             
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print(f"Database error in delete_list endpoint: {str(e)}")
+        return jsonify({"error": "Database error occurred"}), 500
     except Exception as e:
         return jsonify({"error": f"List not found or error occurred: {str(e)}"}), 404
     
 @app.route('/lists/<int:list_id>', methods=['GET'])
 def get_list(list_id):
     try:
-        expense_list = ExpenseList.query.get_or_404(list_id)
-        participants = ListParticipant.query.filter_by(list_id=list_id).all()
-        
-        list_data = expense_list.as_dict()
-        list_data['participants'] = [p.username for p in participants]
-        
-        return jsonify(list_data)
+        expense_list = ExpenseList.query.get(list_id)
+        if not expense_list:
+            return jsonify({'error': 'List not found'}), 404
+
+        return jsonify(expense_list.as_dict()), 200
+
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        print(f"Error in get_list endpoint: {str(e)}")
+        return jsonify({'error': 'Failed to fetch list data'}), 500
+    
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve(path):
+    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
+        return send_from_directory(app.static_folder, path)
+    else:
+        return send_from_directory(app.static_folder, 'index.html')
 
 if __name__ == '__main__':
     with app.app_context():

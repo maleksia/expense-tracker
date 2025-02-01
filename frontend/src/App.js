@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Route, Routes, Navigate, useLocation } from 'react-router-dom';
+import { Route, Routes, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { CurrencyProvider } from './context/CurrencyContext';
 import {
@@ -15,17 +15,20 @@ import AllExpenses from './components/expenses/AllExpenses';
 import AnalyticsDashboard from './components/analytics/AnalyticsDashboard';
 import Settings from './components/settings/Settings';
 import AuthForm from './components/auth/AuthForm';
-// import ProtectedRoute from './components/auth/ProtectedRoute';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import DeletedExpenses from './components/expenses/DeletedExpenses';
-import './styles/main.css';
 import ExpenseListsView from './components/lists/ExpenseListsView';
 import { LoadingSpinner, Notification, ConfirmDialog } from './components/common/index';
+import NotFound from './components/common/NotFound';
 
 function AppContent() {
   const { theme } = useTheme();
   const location = useLocation();
-  const [currentUser, setCurrentUser] = useState(null);
+  const navigate = useNavigate();
+  
+  const [currentUser, setCurrentUser] = useState(() => {
+    return localStorage.getItem('currentUser') || null;
+  });
   const [currentList, setCurrentList] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [expenses, setExpenses] = useState([]);
@@ -33,6 +36,7 @@ function AppContent() {
   const [notification, setNotification] = useState(null);
   const [confirmDialog, setConfirmDialog] = useState({ show: false, message: '' });
 
+  // Fetch expenses whenever currentUser or currentList changes
   useEffect(() => {
     if (currentUser && currentList) {
       fetchExpenses(currentUser, currentList.id)
@@ -45,14 +49,32 @@ function AppContent() {
     }
   }, [currentUser, currentList]);
 
+  // Handle route changes to set currentList based on URL
+  useEffect(() => {
+    const path = location.pathname;
+    const match = path.match(/^\/list\/(\d+)/);
+    if (match) {
+      const listId = match[1];
+      handleListSelect(listId);
+    } else {
+      // If the path doesn't include a listId, clear currentList
+      setCurrentList(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]); // Listen to route changes
+
   const handleLogin = (username) => {
     setCurrentUser(username);
+    localStorage.setItem('currentUser', username);
     setErrorMessage('');
+    navigate(location.state?.from || '/');
   };
 
   const handleLogout = () => {
     setCurrentUser(null);
+    localStorage.removeItem('currentUser');
     setExpenses([]);
+    navigate('/login');
   };
 
   const handleAddExpense = async (expenseData) => {
@@ -89,11 +111,12 @@ function AppContent() {
         try {
           await deleteExpense(id);
           showNotification('Expense deleted successfully', 'success');
+          setExpenses(prev => prev.filter(exp => exp.id !== id));
         } catch (error) {
           showNotification('Failed to delete expense', 'error');
         }
         setLoading(false);
-        setConfirmDialog({ show: false });
+        setConfirmDialog({ show: false, message: '' });
       }
     });
   };
@@ -101,7 +124,7 @@ function AppContent() {
   const handleRestore = async (id) => {
     try {
       await restoreExpense(id);
-      const updatedExpenses = await fetchExpenses(currentUser);
+      const updatedExpenses = await fetchExpenses(currentUser, currentList.id);
       setExpenses(updatedExpenses);
     } catch (error) {
       setErrorMessage('Failed to restore expense');
@@ -109,14 +132,23 @@ function AppContent() {
   };
 
   const handleListSelect = async (listId) => {
+    if (currentList?.id === Number(listId)) {
+      return;
+    }
     try {
-      const response = await fetch(`http://localhost:5000/lists/${listId}`);
+      const response = await fetch(`http://localhost:5000/lists/${listId}`, {
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch list data');
+      }
       const listData = await response.json();
       setCurrentList(listData);
 
       // Fetch expenses for specific list
       const expenses = await fetchExpenses(currentUser, listId);
       setExpenses(expenses);
+      // Removed navigate to prevent redirection back to /list/:listId
     } catch (error) {
       setErrorMessage('Failed to fetch list data');
     }
@@ -124,13 +156,13 @@ function AppContent() {
 
   const ProtectedRoute = ({ children }) => {
     if (!currentUser) {
-      return <Navigate to="/login" replace />;
+      return <Navigate to="/login" replace state={{ from: location.pathname }} />;
     }
     return children;
   };
 
   return (
-    <div className="app-container">
+    <div className="app-container" style={{ backgroundColor: theme.background }}>
       {loading && <LoadingSpinner />}
       {notification && (
         <Notification
@@ -143,13 +175,15 @@ function AppContent() {
         isOpen={confirmDialog.show}
         message={confirmDialog.message}
         onConfirm={confirmDialog.onConfirm}
-        onCancel={() => setConfirmDialog({ show: false })}
+        onCancel={() => setConfirmDialog({ show: false, message: '' })}
       />
 
       <div style={{
         maxWidth: '1200px',
         margin: '0 auto',
         padding: '0 1rem',
+        width: '100%',
+        flex: 1,
         backgroundColor: theme.background,
         color: theme.text,
         minHeight: '100vh'
@@ -175,11 +209,13 @@ function AppContent() {
         )}
 
         <Routes>
-          <Route path="/login" element={<AuthForm onLogin={handleLogin} />} />
+          <Route path="/login" element={
+            currentUser ? <Navigate to="/" replace /> : <AuthForm onLogin={handleLogin} />
+          } />
 
           {/* Home route - show expense lists */}
           <Route path="/" element={
-            <ProtectedRoute isAuthenticated={!!currentUser}>
+            <ProtectedRoute>
               <ExpenseListsView
                 currentUser={currentUser}
                 onListSelect={handleListSelect}
@@ -189,7 +225,7 @@ function AppContent() {
 
           {/* List specific routes */}
           <Route path="/list/:listId" element={
-            <ProtectedRoute isAuthenticated={!!currentUser}>
+            <ProtectedRoute>
               <RecentExpenses
                 currentUser={currentUser}
                 currentList={currentList}
@@ -201,7 +237,7 @@ function AppContent() {
           } />
 
           <Route path="/list/:listId/all" element={
-            <ProtectedRoute isAuthenticated={!!currentUser}>
+            <ProtectedRoute>
               <AllExpenses
                 currentUser={currentUser}
                 expenses={expenses}
@@ -212,13 +248,15 @@ function AppContent() {
           } />
 
           <Route path="/list/:listId/analytics" element={
-            <ProtectedRoute isAuthenticated={!!currentUser}>
+            <ProtectedRoute>
               <AnalyticsDashboard expenses={expenses} />
             </ProtectedRoute>
           } />
 
+          <Route path="*" element={<NotFound />} />
+
           <Route path="/list/:listId/deleted" element={
-            <ProtectedRoute isAuthenticated={!!currentUser}>
+            <ProtectedRoute>
               <DeletedExpenses
                 currentUser={currentUser}
                 currentList={currentList}
@@ -228,7 +266,7 @@ function AppContent() {
           } />
 
           <Route path="/settings" element={
-            <ProtectedRoute isAuthenticated={!!currentUser}>
+            <ProtectedRoute>
               <Settings
                 currentUser={currentUser}
                 currentList={currentList}
@@ -236,7 +274,7 @@ function AppContent() {
             </ProtectedRoute>
           } />
           <Route path="/list/:listId/settings" element={
-            <ProtectedRoute isAuthenticated={!!currentUser}>
+            <ProtectedRoute>
               <Settings
                 currentUser={currentUser}
                 currentList={currentList}
@@ -253,11 +291,9 @@ function App() {
   return (
     <ThemeProvider>
       <CurrencyProvider>
-        <Router>
-          <ErrorBoundary>
-            <AppContent />
-          </ErrorBoundary>
-        </Router>
+        <ErrorBoundary>
+          <AppContent />
+        </ErrorBoundary>
       </CurrencyProvider>
     </ThemeProvider>
   );

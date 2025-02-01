@@ -8,18 +8,21 @@ export const themes = {
     error: '#dc3545',
     'error-dark': '#bd2130',
     success: '#28a745',
-    'surface-hover': '#e9ecef'
+    'surface-hover': '#e9ecef',
+    'background-color': '#ffffff'
   },
   dark: {
-    primary: '#0d6efd',
-    background: '#121212',
-    surface: '#1e1e1e',
-    text: '#ffffff',
+    primary: '#4C9AFF',
+    background: '#1A1A1A',
+    surface: '#2D2D2D',
+    text: '#E1E1E1',
+    textSecondary: '#A0A0A0',
+    textHighlight: '#FFFFFF',
     border: '#404040',
-    error: '#dc3545',
-    'error-dark': '#bd2130',
-    success: '#28a745',
-    'surface-hover': '#2d2d2d'
+    error: '#FF5252',
+    success: '#4CAF50',
+    participantTag: 'rgba(255, 255, 255, 0.15)',
+    'background-color': '#1A1A1A'
   },
   forest: {
     primary: '#2e7d32',
@@ -30,6 +33,8 @@ export const themes = {
     error: '#c62828',
     'error-dark': '#b71c1c',
     success: '#2e7d32',
-    'surface-hover': '#e8f5e9'
+    'surface-hover': '#e8f5e9',
+    participantTag: 'rgba(255, 255, 255, 0.15)',
+    'background-color': '#f1f8e9'
   }
 };

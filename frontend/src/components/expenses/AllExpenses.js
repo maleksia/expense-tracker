@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
+import { FaFilter, FaSort } from 'react-icons/fa';
 import { useTheme } from '../../context/ThemeContext';
 import { useCurrency } from '../../context/CurrencyContext';
 
 function AllExpenses({ currentUser, expenses, handleDeleteExpense, currentList }) {
-  const [selectedPayer, setSelectedPayer] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
   const { theme } = useTheme();
   const { listCurrencies } = useCurrency();
+  const [selectedPayer, setSelectedPayer] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [sortConfig, setSortConfig] = useState({
     key: 'date',
     direction: 'desc'
@@ -52,11 +53,6 @@ function AllExpenses({ currentUser, expenses, handleDeleteExpense, currentList }
     });
   };
 
-  const getSortIcon = (columnKey) => {
-    if (sortConfig.key !== columnKey) return '⇅';
-    return sortConfig.direction === 'asc' ? '↑' : '↓';
-  };
-
   const filteredExpenses = sortedExpenses.filter((expense) => {
     return (
       (!selectedPayer || expense.payer === selectedPayer) &&
@@ -65,66 +61,123 @@ function AllExpenses({ currentUser, expenses, handleDeleteExpense, currentList }
   });
 
   return (
-    <div className="all-expenses" style={{ color: theme.text }}>
-      <h2>All Expenses</h2>
+    <div className="card-container" style={{
+      backgroundColor: 'var(--color-surface)',
+      color: 'var(--color-text)',
+      borderRadius: '12px',
+      padding: '24px',
+      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.2)',
+      border: '1px solid var(--color-border)'
+    }}>
+      <div className="section-header" style={{
+        borderBottom: `1px solid ${theme.border}`,
+        paddingBottom: '16px',
+        marginBottom: '24px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <h2 style={{
+          color: theme.textHighlight,
+          fontSize: '2rem',
+          fontWeight: '600',
+          margin: 0
+        }}>All Expenses</h2>
 
-      <div className="filters">
-        <select
-          value={selectedPayer}
-          onChange={(e) => setSelectedPayer(e.target.value)}
-          style={{
-            backgroundColor: theme.surface,
-            color: theme.text,
-            border: `1px solid ${theme.border}`
-          }}
-        >
-          <option value="">All Payers</option>
-          {[...new Set(expenses.map(e => e.payer))].map(payer => (
-            <option key={payer} value={payer}>{payer}</option>
-          ))}
-        </select>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <div style={{ 
+            display: 'flex',
+            gap: '8px',
+            backgroundColor: theme.background,
+            padding: '8px',
+            borderRadius: '6px'
+          }}>
+            <FaFilter style={{ color: theme.textSecondary }} />
+            <select
+              value={selectedPayer}
+              onChange={(e) => setSelectedPayer(e.target.value)}
+              style={{
+                backgroundColor: 'transparent',
+                color: theme.text,
+                border: 'none',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="">All Payers</option>
+              {[...new Set(expenses.map(e => e.payer))].map(payer => (
+                <option key={payer} value={payer}>{payer}</option>
+              ))}
+            </select>
+          </div>
 
-        <select
-          value={selectedCategory}
-          onChange={(e) => setSelectedCategory(e.target.value)}
-          style={{
-            backgroundColor: theme.surface,
-            color: theme.text,
-            border: `1px solid ${theme.border}`
-          }}
-        >
-          <option value="">All Categories</option>
-          {[...new Set(expenses.map(e => e.category))].map(category => (
-            <option key={category} value={category}>{category}</option>
-          ))}
-        </select>
+          <div style={{ 
+            display: 'flex',
+            gap: '8px',
+            backgroundColor: theme.background,
+            padding: '8px',
+            borderRadius: '6px'
+          }}>
+            <FaFilter style={{ color: theme.textSecondary }} />
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              style={{
+                backgroundColor: 'transparent',
+                color: theme.text,
+                border: 'none',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="">All Categories</option>
+              {[...new Set(expenses.map(e => e.category))].map(category => (
+                <option key={category} value={category}>{category}</option>
+              ))}
+            </select>
+          </div>
+        </div>
       </div>
 
       <table className="expenses-table" style={{
-        backgroundColor: theme.surface,
-        color: theme.text,
-        border: `1px solid ${theme.border}`
+        width: '100%',
+        borderCollapse: 'separate',
+        borderSpacing: '0',
+        marginTop: '16px'
       }}>
         <thead>
           <tr>
             {[
-              'date',
-              'payer',
-              'amount',
-              'description',
-              'category',
-              'participants'
-            ].map((key) => (
+              ['date', 'Date'],
+              ['payer', 'Payer'],
+              ['amount', 'Amount'],
+              ['description', 'Description'],
+              ['category', 'Category'],
+              ['participants', 'Participants']
+            ].map(([key, label]) => (
               <th
                 key={key}
-                style={{ backgroundColor: theme.background }}
                 onClick={() => handleSort(key)}
-                className="sortable"
+                style={{
+                  backgroundColor: theme.background,
+                  color: theme.textHighlight,
+                  padding: '12px 16px',
+                  fontWeight: '600',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  userSelect: 'none'
+                }}
               >
-                {key.charAt(0).toUpperCase() + key.slice(1)} {getSortIcon(key)}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  {label}
+                  <FaSort style={{ 
+                    color: sortConfig.key === key ? theme.primary : theme.textSecondary,
+                    fontSize: '14px'
+                  }} />
+                </div>
               </th>
             ))}
-            <th style={{ backgroundColor: theme.background }}>Actions</th>
+            <th style={{ backgroundColor: theme.background, padding: '12px 16px' }}>Actions</th>
           </tr>
         </thead>
         <tbody>

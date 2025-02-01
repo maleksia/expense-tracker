@@ -21,9 +21,9 @@
   }
 
   .participants-selector {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--spacing-sm);
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 8px;
     margin-top: var(--spacing-sm);
   }
   
@@ -59,20 +59,20 @@
   .expense-form-grid {
     display: grid;
     grid-template-columns: repeat(12, 1fr);
-    gap: var(--spacing-xl); /* Increase gap between form elements */
-    row-gap: var(--spacing-xl); /* Explicit row gap */
+    gap: 24px;
+    row-gap: var(--spacing-xl);
   }
   
   .form-group {
-    grid-column: span 4; /* Default span */
+    grid-column: span 4;
   }
   
   .form-group.amount-field {
-    grid-column: 5 / span 2; /* Position amount field with gap */
+    grid-column: span 2;
   }
   
   .form-group.date-field {
-    grid-column: 5 / span 3; /* Position date field with gap */
+    grid-column: span 2;
   }
   
   .form-label {
@@ -88,10 +88,11 @@
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
   }
   
-  .form-input:focus {
+  .form-input:focus,
+  select:focus {
     outline: none;
     border-color: var(--color-primary);
-    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+    box-shadow: 0 0 0 2px rgba(76, 154, 255, 0.1);
   }
   
   .submit-button {
@@ -117,4 +118,18 @@
     padding: var(--spacing-md);
     border-radius: var(--radius-md);
     background-color: rgba(239, 68, 68, 0.1);
+  }
+
+  /* Make form full-width on mobile */
+  @media (max-width: 768px) {
+    .expense-form-grid {
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+  
+    .form-group,
+    .form-group.amount-field,
+    .form-group.date-field {
+      grid-column: 1 / -1;
+    }
   }

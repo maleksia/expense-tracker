@@ -1,22 +1,30 @@
 import React from 'react';
 import AddExpenseForm from './AddExpenseForm';
-import ExpensesList from './ExpensesList';
+import ExpenseList from './ExpenseList';
 import DebtCalculator from './DebtCalculator';
+import { useTheme } from '../../context/ThemeContext';
 
-function RecentExpenses({ currentUser, expenses, handleAddExpense, handleDeleteExpense, currentList }) {
-  const recentExpenses = expenses.slice(0, 5);
+function RecentExpenses({ currentUser, currentList, expenses, handleAddExpense, handleDeleteExpense }) {
+  const { theme } = useTheme();
+
+  const handleEditExpense = (expense) => {
+    // Implement edit functionality
+    console.log('Edit expense:', expense);
+  };
 
   return (
-    <div>
+    <div style={{ color: theme.text }}>
       <h2>{currentList?.name || 'Loading...'}</h2>
       <AddExpenseForm
         onSubmit={handleAddExpense}
         currentUser={currentUser}
         currentList={currentList}
       />
-      <ExpensesList
-        expenses={recentExpenses}
-        handleDeleteExpense={handleDeleteExpense}
+      <ExpenseList
+        expenses={expenses.sort((a, b) => new Date(b.date) - new Date(a.date))} // Sort by date descending
+        onDelete={handleDeleteExpense}
+        onEdit={handleEditExpense}
+        currentList={currentList}
       />
       <DebtCalculator
         expenses={expenses}

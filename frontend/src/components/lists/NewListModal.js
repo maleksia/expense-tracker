@@ -57,6 +57,7 @@ function NewListModal({ onSubmit, onClose, theme }) {
           type="text"
           placeholder="List Name"
           value={listData.name}
+          maxLength={25}
           onChange={(e) => setListData({ ...listData, name: e.target.value })}
           style={{
             width: '100%',
@@ -75,6 +76,7 @@ function NewListModal({ onSubmit, onClose, theme }) {
               type="text"
               placeholder="Add participant"
               value={participantInput}
+              maxLength={20}
               onChange={(e) => setParticipantInput(e.target.value)}
               style={{
                 flex: 1,

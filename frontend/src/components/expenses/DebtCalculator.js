@@ -75,37 +75,64 @@ function DebtCalculator({ currentUser, currentList }) {
   };
 
   return (
-    <div className="debt-calculator" style={{
-      backgroundColor: theme.surface,
-      padding: '20px',
-      borderRadius: '8px',
-      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-    }}>
-      <h2 style={{ marginBottom: '20px' }}>Debt Summary</h2>
-      <div className="debt-sections">
-        {Object.entries(calculateNetDebts(debts)).map(([debtor, creditors]) =>
-          Object.entries(creditors).map(([creditor, amount]) => (
-            <div
-              key={`${debtor}-${creditor}`}
-              style={{
-                padding: '10px',
-                marginBottom: '10px',
-                backgroundColor: theme.background,
-                borderRadius: '4px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}
-            >
-              <span>{debtor} owes {creditor}:</span>
-              <span style={{
-                fontWeight: 'bold',
-                color: amount > 1000 ? theme.error : theme.text
-              }}>
-                {amount.toFixed(2)} {currencySymbols[currentCurrency]}
-              </span>
-            </div>
-          ))
+    <div className="component-container">
+      <div className="component-header">
+        <h2 className="component-title">Debt Summary</h2>
+      </div>
+
+      <div className="debt-sections" style={{
+        backgroundColor: theme.currentTheme === 'dark' ? '#1e1e1e' : theme.background,
+        borderRadius: '8px',
+        padding: '16px',
+      }}>
+        {Object.entries(calculateNetDebts(debts)).length === 0 ? (
+          <div style={{ 
+            textAlign: 'center',
+            padding: '32px',
+            color: theme.textSecondary
+          }}>
+            <p style={{ margin: 0 }}>No outstanding debts.</p>
+          </div>
+        ) : (
+          Object.entries(calculateNetDebts(debts)).map(([debtor, creditors]) =>
+            Object.entries(creditors).map(([creditor, amount]) => (
+              <div
+                key={`${debtor}-${creditor}`}
+                style={{
+                  padding: '16px',
+                  marginBottom: '8px',
+                  backgroundColor: theme.currentTheme === 'dark' ? '#242424' : theme.surface,
+                  borderRadius: '8px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  border: `1px solid ${theme.border}`,
+                  transition: 'transform 0.2s ease',
+                  cursor: 'default',
+                  ':hover': {
+                    transform: 'translateY(-2px)'
+                  }
+                }}
+              >
+                <span style={{ 
+                  color: theme.text,
+                  fontWeight: '500'
+                }}>
+                  <span style={{ color: theme.textSecondary }}>From </span>
+                  {debtor}
+                  <span style={{ color: theme.textSecondary }}> to </span>
+                  {creditor}:
+                </span>
+                <span style={{
+                  fontWeight: 'bold',
+                  color: amount > 1000 ? theme.error : theme.success,
+                  fontSize: '1.1rem'
+                }}>
+                  {amount.toFixed(2)} {currencySymbols[currentCurrency]}
+                </span>
+              </div>
+            ))
+          )
         )}
       </div>
     </div>
