@@ -18,6 +18,7 @@ jobs:
           name: build-output
           path: |
             frontend/build
+            backend
   deploy:
     runs-on: self-hosted
     needs: build
@@ -28,7 +29,7 @@ jobs:
         with:
           name: build-output
           path: build-output
-      - name: Deploy app
+      - name: Deploy backend
         run: tree
       - run: pwd
       - run: ls
