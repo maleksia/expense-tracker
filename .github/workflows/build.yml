@@ -34,5 +34,6 @@ jobs:
       - run: pwd
       - run: ls
       - name: Deploy front-end
-        run: sudo rm /var/www/*
+        run: sudo rm -r /var/www/*
       - run: sudo cp -r build-output/frontend/build/* /var/www
+      - run: chown -R www-data:www-data /var/www
