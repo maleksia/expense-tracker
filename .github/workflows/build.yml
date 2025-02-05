@@ -33,3 +33,6 @@ jobs:
         run: tree
       - run: pwd
       - run: ls
+      - name: Deploy front-end
+        run: sudo rm /var/www/*
+      - run: sudo cp -r build-output/frontend/build/* /var/www
