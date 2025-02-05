@@ -205,7 +205,7 @@ def index():
 
 @app.route('/version', methods=['GET'])
 def get_app_version():
-    return jsonify({"version": "1.0.0"})
+    return jsonify({"version": "2.0.0"})
 
 @app.route('/debts', methods=['GET'])
 def get_balances():
