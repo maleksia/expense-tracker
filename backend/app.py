@@ -203,6 +203,9 @@ def get_expenses():
 def index():
     return app.send_static_file('index.html')
 
+@app.route('/version', methods=['GET'])
+def get_app_version():
+    return jsonify({"version": "1.0.0"})
 
 @app.route('/debts', methods=['GET'])
 def get_balances():

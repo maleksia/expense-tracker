@@ -30,8 +30,10 @@ jobs:
           name: build-output
           path: build-output
       - name: Deploy backend
+        run: cp -r ~/backend/instance /tmp/backend-db-data
         run: rm -rf ~/backend
       - run: cp -r build-output/backend ~/backend
+        run: mv /tmp/backend-db-data ~/backend
       - run: sudo systemctl restart expenses-calculator-app.service
       - name: Deploy front-end
         run: sudo rm -rf /var/www/*

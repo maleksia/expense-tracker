@@ -22,7 +22,7 @@ import { LoadingSpinner, Notification, ConfirmDialog } from './components/common
 import NotFound from './components/common/NotFound';
 
 
-console.log('Hello World');
+console.log('Hello World!!!');
 
 function AppContent() {
   const { theme } = useTheme();
