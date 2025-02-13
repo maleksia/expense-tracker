@@ -36,32 +36,55 @@ function AppContent() {
   const [notification, setNotification] = useState(null);
   const [confirmDialog, setConfirmDialog] = useState({ show: false, message: '' });
 
-  // Fetch expenses whenever currentUser or currentList changes
+  // Modify the useEffect for fetching expenses
   useEffect(() => {
-    if (currentUser && currentList) {
-      fetchExpenses(currentUser, currentList.id)
-        .then(setExpenses)
-        .catch(() => setErrorMessage('Failed to fetch expenses'));
-    } else if (currentUser && !currentList) {
-      fetchExpenses(currentUser)
-        .then(setExpenses)
-        .catch(() => setErrorMessage('Failed to fetch expenses'));
-    }
+    const fetchData = async () => {
+      if (currentUser) {
+        try {
+          if (currentList) {
+            const data = await fetchExpenses(currentUser, currentList.id);
+            setExpenses(data);
+            setErrorMessage('');
+          } else {
+            setExpenses([]); // Clear expenses when no list is selected
+            setErrorMessage('');
+          }
+        } catch (err) {
+          console.error('Failed to fetch expenses:', err);
+          setErrorMessage('Failed to fetch expenses');
+        }
+      }
+    };
+    
+    fetchData();
   }, [currentUser, currentList]);
 
   // Handle route changes to set currentList based on URL
   useEffect(() => {
+    // Fetch list data when listId changes
+    const fetchListData = async (listId) => {
+      try {
+        const response = await fetch(`http://localhost:5000/lists/${listId}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch list data');
+        }
+        const data = await response.json();
+        setCurrentList(data);
+      } catch (error) {
+        console.error('Error fetching list:', error);
+        setErrorMessage('Failed to load list');
+      }
+    };
+
     const path = location.pathname;
     const match = path.match(/^\/list\/(\d+)/);
     if (match) {
-      const listId = match[1];
-      handleListSelect(listId);
+      const listId = parseInt(match[1], 10);
+      fetchListData(listId);
     } else {
-      // If the path doesn't include a listId, clear currentList
       setCurrentList(null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname]); // Listen to route changes
+  }, [location.pathname]);
 
   const handleLogin = (username) => {
     setCurrentUser(username);

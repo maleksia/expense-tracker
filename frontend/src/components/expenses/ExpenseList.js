@@ -1,6 +1,6 @@
 import React from 'react';
 import { format } from 'date-fns';
-import { FaPencilAlt, FaTrash, FaArrowRight } from 'react-icons/fa';
+import { FaPencilAlt, FaTrash, FaArrowRight, FaUserCog } from 'react-icons/fa';
 import { useTheme } from '../../context/ThemeContext';
 import { useCurrency } from '../../context/CurrencyContext';
 import { Link, useParams } from 'react-router-dom';
@@ -54,13 +54,36 @@ function ExpenseList({ expenses, onDelete, onEdit, currentList }) {
     }).format(amount);
   };
 
+  const renderParticipant = (participant) => {
+    const isRegistered = currentList.registered_participants?.includes(participant);
+    
+    return (
+      <span
+        key={participant}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '4px',
+          backgroundColor: isRegistered ? `${theme.primary}15` : theme.surface,
+          padding: '2px 8px',
+          borderRadius: '12px',
+          margin: '0 4px',
+          fontSize: '0.9rem'
+        }}
+      >
+        {isRegistered && <FaUserCog size={12} color={theme.primary} />}
+        {participant}
+      </span>
+    );
+  };
+
   if (!expenses || expenses.length === 0) {
     return (
       <div className="card-container" style={containerStyle}>
         <div className="section-header" style={headerStyle}>
           <h2 style={titleStyle}>Recent Expenses</h2>
         </div>
-        <div style={{ 
+        <div style={{
           textAlign: 'center',
           padding: '32px',
           color: theme.textSecondary,
@@ -79,8 +102,8 @@ function ExpenseList({ expenses, onDelete, onEdit, currentList }) {
     <div className="component-container">
       <div className="component-header">
         <h2 className="component-title">Recent Expenses</h2>
-        
-        <Link 
+
+        <Link
           to={`/list/${listId}/all`}
           className="view-all-link"
         >
@@ -91,8 +114,17 @@ function ExpenseList({ expenses, onDelete, onEdit, currentList }) {
       <table className="expenses-table" style={tableStyle}>
         <thead>
           <tr>
-            {['Description', 'Date', 'Payer', 'Amount', 'Actions'].map((header, index) => (
-              <th key={header} className={`table-header ${index >= 3 ? 'text-right' : ''}`}>
+            {['Payer', 'Date', 'Description', 'Amount', 'Participants', 'Actions'].map((header) => (
+              <th
+                key={header}
+                style={{
+                  padding: '12px 16px',
+                  textAlign: header === 'Actions' ? 'center' : 'left',
+                  color: theme.textSecondary,
+                  fontWeight: '500',
+                  borderBottom: `1px solid ${theme.border}`
+                }}
+              >
                 {header}
               </th>
             ))}
@@ -104,7 +136,7 @@ function ExpenseList({ expenses, onDelete, onEdit, currentList }) {
               <td style={{
                 padding: '12px 16px',
                 color: theme.text
-              }}>{expense.description}</td>
+              }}>{expense.payer}</td>
               <td style={{
                 padding: '12px 16px',
                 color: theme.textSecondary
@@ -112,44 +144,70 @@ function ExpenseList({ expenses, onDelete, onEdit, currentList }) {
               <td style={{
                 padding: '12px 16px',
                 color: theme.text
-              }}>{expense.payer}</td>
+              }}>{expense.description}</td>
               <td style={{
                 padding: '12px 16px',
                 color: expense.amount >= 0 ? theme.success : theme.error,
-                fontWeight: '600',
-                textAlign: 'right'
+                fontWeight: '600'
               }}>{formatAmount(expense.amount)}</td>
               <td style={{
                 padding: '12px 16px',
-                textAlign: 'right'
+                color: theme.text,
+                maxWidth: '200px'
               }}>
-                <button
-                  onClick={() => onEdit(expense)}
-                  style={{
-                    backgroundColor: theme.primary,
-                    color: '#fff',
-                    border: 'none',
-                    padding: '6px 12px',
-                    borderRadius: '4px',
-                    marginRight: '8px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <FaPencilAlt />
-                </button>
-                <button
-                  onClick={() => onDelete(expense.id)}
-                  style={{
-                    backgroundColor: theme.error,
-                    color: '#fff',
-                    border: 'none',
-                    padding: '6px 12px',
-                    borderRadius: '4px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <FaTrash />
-                </button>
+                <div style={{ 
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '4px',
+                  alignItems: 'center'
+                }}>
+                  {expense.participants.map(participant => renderParticipant(participant))}
+                </div>
+              </td>
+              <td style={{
+                padding: '12px 16px',
+                textAlign: 'center'
+              }}>
+                <div style={{
+                  display: 'flex',
+                  gap: '8px',
+                  justifyContent: 'center'
+                }}>
+                  <button
+                    onClick={() => onEdit(expense)}
+                    style={{
+                      backgroundColor: theme.primary,
+                      color: '#fff',
+                      border: 'none',
+                      padding: '6px 12px',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <FaPencilAlt size={12} />
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => onDelete(expense.id)}
+                    style={{
+                      backgroundColor: theme.error,
+                      color: '#fff',
+                      border: 'none',
+                      padding: '6px 12px',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <FaTrash size={12} />
+                    Delete
+                  </button>
+                </div>
               </td>
             </tr>
           ))}

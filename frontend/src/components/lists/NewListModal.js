@@ -3,9 +3,12 @@ import React, { useState } from 'react';
 function NewListModal({ onSubmit, onClose, theme }) {
   const [listData, setListData] = useState({
     name: '',
-    participants: []
+    participants: [],
+    sharedWith: [],
+    includeCreator: true
   });
   const [participantInput, setParticipantInput] = useState('');
+  const [userInput, setUserInput] = useState('');
   const [error, setError] = useState('');
 
   const handleAddParticipant = () => {
@@ -18,14 +21,38 @@ function NewListModal({ onSubmit, onClose, theme }) {
     }
   };
 
+  const handleAddUser = async () => {
+    if (!userInput.trim()) return;
+
+    try {
+      // Check if user exists
+      const response = await fetch(`http://localhost:5000/users/check?username=${userInput}`);
+      const data = await response.json();
+
+      if (data.exists) {
+        if (!listData.sharedWith.includes(userInput)) {
+          setListData(prev => ({
+            ...prev,
+            sharedWith: [...prev.sharedWith, userInput]
+          }));
+        }
+      } else {
+        setError('User not found');
+      }
+    } catch (error) {
+      setError('Failed to verify user');
+    }
+    setUserInput('');
+  };
+
   const handleSubmit = () => {
     setError('');
     if (!listData.name.trim()) {
       setError('Please enter a list name');
       return;
     }
-    if (listData.participants.length === 0) {
-      setError('Please add at least one participant');
+    if (listData.participants.length === 0 && !listData.includeCreator) {
+      setError('Please add at least one participant or include yourself');
       return;
     }
     onSubmit(listData);
@@ -140,6 +167,99 @@ function NewListModal({ onSubmit, onClose, theme }) {
             </span>
           ))}
         </div>
+
+        {/* Registered users section */}
+        <div style={{ marginBottom: '20px' }}>
+          <h4 style={{ color: theme.text }}>Share with Registered Users</h4>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <input
+              type="text"
+              placeholder="Enter username"
+              value={userInput}
+              onChange={(e) => setUserInput(e.target.value)}
+              style={{
+                flex: 1,
+                padding: '10px',
+                borderRadius: '4px',
+                border: `1px solid ${theme.border}`,
+                backgroundColor: theme.background,
+                color: theme.text
+              }}
+            />
+            <button
+              onClick={handleAddUser}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: theme.primary,
+                color: '#fff',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              Add
+            </button>
+          </div>
+          <div style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '10px',
+            marginTop: '10px'
+          }}>
+            {listData.sharedWith.map((user, i) => (
+              <span
+                key={i}
+                style={{
+                  padding: '5px 10px',
+                  backgroundColor: theme.background,
+                  borderRadius: '20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px'
+                }}
+              >
+                {user}
+                <button
+                  onClick={() => setListData(prev => ({
+                    ...prev,
+                    sharedWith: prev.sharedWith.filter((_, index) => index !== i)
+                  }))}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: theme.error,
+                    cursor: 'pointer',
+                    padding: '0 5px'
+                  }}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* Add checkbox for creator inclusion */}
+        <div style={{ marginBottom: '20px' }}>
+          <label style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            color: theme.text,
+            cursor: 'pointer'
+          }}>
+            <input
+              type="checkbox"
+              checked={listData.includeCreator}
+              onChange={(e) => setListData(prev => ({
+                ...prev,
+                includeCreator: e.target.checked
+              }))}
+            />
+            Include me as a participant
+          </label>
+        </div>
+
         {error && (
           <p style={{
             color: theme.error,

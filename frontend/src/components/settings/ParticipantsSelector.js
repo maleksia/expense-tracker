@@ -1,79 +1,120 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { FaUserCog } from 'react-icons/fa';
 import { useTheme } from '../../context/ThemeContext';
 
-function ParticipantsSelector({ payers, selectedParticipants, onSelect }) {
+function ParticipantsSelector({ registeredPayers, nonRegisteredPayers, participants, onSelect }) {
   const { theme } = useTheme();
-  const [showSelector, setShowSelector] = useState(false);
 
-  const selectAll = () => {
-    onSelect(payers.map(p => p.name));
-    setShowSelector(false);
+  const toggleParticipant = (type, name) => {
+    const participantId = `${type}:${name}`;
+    const isSelected = participants.includes(participantId);
+    
+    const updatedParticipants = isSelected
+      ? participants.filter(p => p !== participantId)
+      : [...participants, participantId];
+    
+    onSelect(updatedParticipants);
+  };
+
+  const isSelected = (type, name) => {
+    return participants.includes(`${type}:${name}`);
+  };
+
+  const handleSelectAll = () => {
+    const allParticipants = [
+      ...registeredPayers.map(p => `registered:${p.name}`),
+      ...nonRegisteredPayers.map(name => `nonRegistered:${name}`)
+    ];
+    onSelect(allParticipants);
+  };
+
+  const handleDeselectAll = () => {
+    onSelect([]);
   };
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+      <div style={{
+        display: 'flex',
+        gap: '8px',
+        marginBottom: '12px'
+      }}>
         <button
           type="button"
-          onClick={selectAll}
+          onClick={handleSelectAll}
           style={{
-            backgroundColor: !showSelector ? theme.primary : theme.surface,
-            color: !showSelector ? '#fff' : theme.text,
+            padding: '4px 8px',
+            fontSize: '0.8rem',
+            backgroundColor: theme.surface,
+            color: theme.text,
             border: `1px solid ${theme.border}`,
-            padding: '8px 16px',
             borderRadius: '4px',
             cursor: 'pointer'
           }}
         >
-          All
+          Select All
         </button>
         <button
           type="button"
-          onClick={() => setShowSelector(true)}
+          onClick={handleDeselectAll}
           style={{
-            backgroundColor: showSelector ? theme.primary : theme.surface,
-            color: showSelector ? '#fff' : theme.text,
+            padding: '4px 8px',
+            fontSize: '0.8rem',
+            backgroundColor: theme.surface,
+            color: theme.text,
             border: `1px solid ${theme.border}`,
-            padding: '8px 16px',
             borderRadius: '4px',
             cursor: 'pointer'
           }}
         >
-          Select Participants
+          Deselect All
         </button>
       </div>
 
-      {showSelector && (
-        <div style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '8px'
-        }}>
-          {payers.map(payer => (
-            <button
-              key={payer.id}
-              type="button"
-              onClick={() => {
-                const isSelected = selectedParticipants.includes(payer.name);
-                const newParticipants = isSelected
-                  ? selectedParticipants.filter(p => p !== payer.name)
-                  : [...selectedParticipants, payer.name];
-                onSelect(newParticipants);
-              }}
-              style={{
-                backgroundColor: selectedParticipants.includes(payer.name) ? theme.primary : theme.surface,
-                color: selectedParticipants.includes(payer.name) ? '#fff' : theme.text,
-                border: `1px solid ${theme.border}`,
-                padding: '8px 16px',
-                borderRadius: '4px',
-                cursor: 'pointer'
-              }}
-            >
-              {payer.name}
-            </button>
-          ))}
-        </div>
-      )}
+      <div style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '8px'
+      }}>
+        {registeredPayers?.map(payer => (
+          <button
+            type="button"
+            key={`reg-${payer.username}`}
+            onClick={() => toggleParticipant('registered', payer.name)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              padding: '8px 12px',
+              borderRadius: '20px',
+              border: 'none',
+              backgroundColor: isSelected('registered', payer.name) ? theme.primary : theme.surface,
+              color: isSelected('registered', payer.name) ? 'white' : theme.text,
+              cursor: 'pointer'
+            }}
+          >
+            <FaUserCog style={{ marginRight: '6px' }} />
+            {payer.name}
+          </button>
+        ))}
+        
+        {nonRegisteredPayers?.map(name => (
+          <button
+            type="button"
+            key={`nonreg-${name}`}
+            onClick={() => toggleParticipant('nonRegistered', name)}
+            style={{
+              padding: '8px 12px',
+              borderRadius: '20px',
+              border: 'none',
+              backgroundColor: isSelected('nonRegistered', name) ? theme.primary : theme.surface,
+              color: isSelected('nonRegistered', name) ? 'white' : theme.text,
+              cursor: 'pointer'
+            }}
+          >
+            {name}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

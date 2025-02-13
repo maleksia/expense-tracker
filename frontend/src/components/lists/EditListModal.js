@@ -1,11 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 function EditListModal({ list, onSubmit, onClose, theme }) {
   const [listData, setListData] = useState({
     name: list.name,
-    participants: list.participants
+    participants: list.non_registered_participants || [],
+    sharedWith: []
   });
+
+  // Initialize with existing registered participants if needed
+  useEffect(() => {
+    if (list.registered_participants?.length > 0) {
+      setListData(prev => ({
+        ...prev,
+        sharedWith: [...list.registered_participants],
+        existingSharedUsers: new Set(list.registered_participants) // Add this line to track existing users
+      }));
+    }
+  }, [list]);
+
   const [participantInput, setParticipantInput] = useState('');
+  const [userInput, setUserInput] = useState('');
   const [error, setError] = useState('');
 
   const handleSubmit = () => {
@@ -16,12 +30,21 @@ function EditListModal({ list, onSubmit, onClose, theme }) {
       return;
     }
 
-    if (listData.participants.length === 0) {
-      setError('Please add at least one participant');
+    // Only require participants if there are no shared users
+    if (listData.participants.length === 0 && listData.sharedWith.length === 0) {
+      setError('Please add at least one participant or share with a registered user');
       return;
     }
 
-    onSubmit(listData);
+    // Filter out existing users from sharedWith before submitting
+    const newSharedUsers = listData.sharedWith.filter(
+      user => !listData.existingSharedUsers?.has(user)
+    );
+
+    onSubmit({
+      ...listData,
+      sharedWith: newSharedUsers
+    });
   };
 
   const handleAddParticipant = () => {
@@ -31,6 +54,29 @@ function EditListModal({ list, onSubmit, onClose, theme }) {
         participants: [...prev.participants, participantInput]
       }));
       setParticipantInput('');
+    }
+  };
+
+  const handleAddUser = async () => {
+    if (!userInput.trim()) return;
+
+    try {
+      const response = await fetch(`http://localhost:5000/users/check?username=${userInput}`);
+      const data = await response.json();
+
+      if (data.exists) {
+        if (!listData.sharedWith.includes(userInput)) {
+          setListData(prev => ({
+            ...prev,
+            sharedWith: [...prev.sharedWith, userInput]
+          }));
+        }
+        setUserInput('');
+      } else {
+        setError('User not found');
+      }
+    } catch (error) {
+      setError('Failed to verify user');
     }
   };
 
@@ -142,6 +188,79 @@ function EditListModal({ list, onSubmit, onClose, theme }) {
               </button>
             </span>
           ))}
+        </div>
+
+        {/* Add new Registered Users section */}
+        <div className="section">
+          <h4 style={{ color: theme.text, marginBottom: '10px' }}>Share with Registered Users</h4>
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+            <input
+              type="text"
+              placeholder="Enter username"
+              value={userInput}
+              onChange={(e) => setUserInput(e.target.value)}
+              style={{
+                flex: 1,
+                padding: '10px',
+                borderRadius: '4px',
+                border: `1px solid ${theme.border}`,
+                backgroundColor: theme.background,
+                color: theme.text
+              }}
+            />
+            <button
+              onClick={handleAddUser}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: theme.primary,
+                color: '#fff',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              Add
+            </button>
+          </div>
+          <div style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '10px',
+            marginBottom: '20px'
+          }}>
+            {listData.sharedWith.map((user, i) => (
+              <span
+                key={i}
+                className="tag registered-user"
+                style={{
+                  padding: '5px 10px',
+                  backgroundColor: theme.primary,
+                  color: 'white',
+                  borderRadius: '20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px'
+                }}
+              >
+                {user}
+                <button
+                  onClick={() => setListData(prev => ({
+                    ...prev,
+                    sharedWith: prev.sharedWith.filter((_, index) => index !== i)
+                  }))}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'white',
+                    cursor: 'pointer',
+                    padding: '0 5px'
+                  }}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
         </div>
         
         {error && (
