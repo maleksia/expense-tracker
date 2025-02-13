@@ -21,6 +21,9 @@ import ExpenseListsView from './components/lists/ExpenseListsView';
 import { LoadingSpinner, Notification, ConfirmDialog } from './components/common/index';
 import NotFound from './components/common/NotFound';
 
+
+console.log('Hello World!!!');
+
 function AppContent() {
   const { theme } = useTheme();
   const location = useLocation();
@@ -36,7 +39,7 @@ function AppContent() {
   const [notification, setNotification] = useState(null);
   const [confirmDialog, setConfirmDialog] = useState({ show: false, message: '' });
 
-  // Modify the useEffect for fetching expenses
+  // Fetch expenses whenever currentUser or currentList changes
   useEffect(() => {
     const fetchData = async () => {
       if (currentUser) {

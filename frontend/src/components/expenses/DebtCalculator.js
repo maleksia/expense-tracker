@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { initializeWebSocket, calculateDebtsRealTime } from '../../api';
+import { calculateDebtsRealTime } from '../../api';
 import { socket } from '../../api';
 import { useTheme } from '../../context/ThemeContext';
 import { useCurrency } from '../../context/CurrencyContext';
