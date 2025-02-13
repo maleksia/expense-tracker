@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { initializeWebSocket, calculateDebtsRealTime } from '../../api';
+import { calculateDebtsRealTime } from '../../api';
 import { socket } from '../../api';
 import { useTheme } from '../../context/ThemeContext';
 import { useCurrency } from '../../context/CurrencyContext';
+import { FaUserCog } from 'react-icons/fa';
 
 function DebtCalculator({ currentUser, currentList }) {
   const { theme } = useTheme();
@@ -19,8 +20,8 @@ function DebtCalculator({ currentUser, currentList }) {
 
   useEffect(() => {
     const fetchDebts = async () => {
-      if (!currentList?.id) {
-        console.log('No list ID available');
+      if (!currentUser || !currentList?.id) {
+        console.log('Waiting for list data...');
         return;
       }
 
@@ -31,7 +32,6 @@ function DebtCalculator({ currentUser, currentList }) {
         });
 
         const result = await calculateDebtsRealTime(currentUser, currentList.id);
-        console.log('Debt calculation result:', result);
         setDebts(result);
       } catch (error) {
         console.error('Error fetching debts:', error);
@@ -40,12 +40,10 @@ function DebtCalculator({ currentUser, currentList }) {
 
     fetchDebts();
 
-    // Update socket event to use list ID
-    if (currentList?.id) {
+    if (currentUser && currentList?.id) {
       const eventName = `expensesUpdated_${currentUser}_${currentList.id}`;
-      console.log('Socket event name:', eventName);
-
-      initializeWebSocket(currentUser, currentList.id, (updatedDebts) => {
+      
+      socket.on(eventName, (updatedDebts) => {
         console.log('Received socket update:', updatedDebts);
         setDebts(updatedDebts);
       });
@@ -72,6 +70,29 @@ function DebtCalculator({ currentUser, currentList }) {
     });
 
     return netDebts;
+  };
+
+  const renderUser = (username) => {
+    const isRegistered = currentList?.registered_participants?.includes(username);
+    
+    return (
+      <span style={{ 
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '4px',
+        fontWeight: '500'
+      }}>
+        {isRegistered && (
+          <FaUserCog 
+            style={{ 
+              color: theme.primary,
+              marginRight: '4px'
+            }} 
+          />
+        )}
+        {username}
+      </span>
+    );
   };
 
   return (
@@ -119,9 +140,9 @@ function DebtCalculator({ currentUser, currentList }) {
                   fontWeight: '500'
                 }}>
                   <span style={{ color: theme.textSecondary }}>From </span>
-                  {debtor}
+                  {renderUser(debtor)}
                   <span style={{ color: theme.textSecondary }}> to </span>
-                  {creditor}:
+                  {renderUser(creditor)}:
                 </span>
                 <span style={{
                   fontWeight: 'bold',

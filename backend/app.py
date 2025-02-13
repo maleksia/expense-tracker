@@ -5,7 +5,7 @@ from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_socketio import SocketIO
 from db import db
-from models import User, Expense, Payer, Category, DeletedExpense, ExpenseList, ListParticipant
+from models import User, Expense, Payer, Category, DeletedExpense, ExpenseList, ListParticipant, ListShareRequest, ListDeletionRequest, ListDeletionApproval
 from sqlalchemy.exc import SQLAlchemyError
 
 app = Flask(__name__, static_folder='../frontend/build', static_url_path='/')
@@ -97,11 +97,22 @@ def calculate_debts_internal(username=None, list_id=None):
     if not username:
         return {}
         
-    query = Expense.query.filter_by(username=username)
     if list_id:
-        query = query.filter_by(list_id=list_id)
-    
-    expenses = query.all()
+        # Get all expenses for the list, regardless of who created them
+        expenses = Expense.query.filter_by(list_id=list_id).all()
+    else:
+        # Get expenses from all accessible lists
+        accessible_lists = db.session.query(ExpenseList.id).filter(
+            db.or_(
+                ExpenseList.created_by == username,
+                ExpenseList.id.in_(
+                    db.session.query(ListParticipant.list_id)
+                    .filter(ListParticipant.username == username)
+                )
+            )
+        )
+        expenses = Expense.query.filter(Expense.list_id.in_(accessible_lists)).all()
+
     if not expenses:
         return {}
     
@@ -150,7 +161,21 @@ def handle_connect():
 def add_expense():
     try:
         data = request.get_json()
-        participants_str = ','.join(data.get('participants', []))
+        
+        # Process prefixed participants
+        participants = data.get('participants', [])
+        processed_participants = []
+        
+        for participant in participants:
+            # Split the type prefix from the name
+            parts = participant.split(':')
+            if len(parts) == 2:
+                participant_type, name = parts
+                processed_participants.append(name)
+            else:
+                processed_participants.append(participant)
+        
+        participants_str = ','.join(processed_participants)
         
         new_expense = Expense(
             payer=data['payer'],
@@ -167,7 +192,7 @@ def add_expense():
         db.session.commit()
         
         expense_dict = new_expense.as_dict()
-        expense_dict['participants'] = data.get('participants', [])
+        expense_dict['participants'] = processed_participants
         
         # Update debts calculation with list_id
         debts = calculate_debts_internal(data['username'], data['list_id'])
@@ -192,11 +217,35 @@ def get_expenses():
     if not username:
         return jsonify({"error": "Username required"}), 400
     
-    query = Expense.query.filter_by(username=username)
     if list_id:
-        query = query.filter_by(list_id=list_id)
-    
-    expenses = query.all()
+        # First check if user has access to this list
+        access = db.or_(
+            ExpenseList.created_by == username,
+            ListParticipant.username == username
+        )
+        list_access = db.session.query(ExpenseList).filter(
+            ExpenseList.id == list_id,
+            access
+        ).join(ListParticipant, isouter=True).first()
+
+        if not list_access:
+            return jsonify({"error": "No access to this list"}), 403
+
+        # Get all expenses for the list, regardless of who created them
+        expenses = Expense.query.filter_by(list_id=list_id).all()
+    else:
+        # Get expenses from all lists user has access to
+        accessible_lists = db.session.query(ExpenseList.id).filter(
+            db.or_(
+                ExpenseList.created_by == username,
+                ExpenseList.id.in_(
+                    db.session.query(ListParticipant.list_id)
+                    .filter(ListParticipant.username == username)
+                )
+            )
+        )
+        expenses = Expense.query.filter(Expense.list_id.in_(accessible_lists)).all()
+
     return jsonify([expense.as_dict() for expense in expenses])
 
 @app.route('/')
@@ -460,40 +509,72 @@ def restore_expense(id):
     
 @app.route('/lists', methods=['GET'])
 def get_lists():
-    username = request.args.get('username')
-    if not username:
-        return jsonify({"error": "Username required"}), 400
-    
-    lists = ExpenseList.query.filter_by(created_by=username).all()
-    return jsonify([list.as_dict() for list in lists])
+    try:
+        username = request.args.get('username')
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+
+        # Get lists where user is either creator or participant
+        lists = ExpenseList.query.filter(
+            db.or_(
+                ExpenseList.created_by == username,
+                ExpenseList.id.in_(
+                    db.session.query(ListParticipant.list_id)
+                    .filter(ListParticipant.username == username)
+                )
+            )
+        ).all()
+
+        return jsonify([list.as_dict() for list in lists]), 200
+
+    except Exception as e:
+        print(f"Error in get_lists endpoint: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/lists', methods=['POST'])
 def create_list():
     try:
         data = request.get_json()
+        creator = data['createdBy']
+        include_creator = data.get('includeCreator', True)
+        participants = list(set(data.get('participants', [])))
         
+        # Validate that there's at least one participant (including creator if included)
+        if not participants and not include_creator:
+            return jsonify({"error": "List must have at least one participant"}), 400
+
         new_list = ExpenseList(
             name=data['name'],
-            created_by=data['createdBy']
+            created_by=creator,
+            participants=','.join(p for p in participants if p != creator)  # Exclude creator from non-registered
         )
         db.session.add(new_list)
-        db.session.flush()  # Get ID before adding participants
-        
-        # Add participants
-        for username in data.get('participants', []):
-            participant = ListParticipant(
+        db.session.flush()
+
+        # If creator should be included, add them as a registered participant
+        if include_creator:
+            creator_participant = ListParticipant(
                 list_id=new_list.id,
-                username=username
+                username=creator,
+                role='owner'
             )
-            db.session.add(participant)
+            db.session.add(creator_participant)
+
+        # Add share requests for other registered users
+        for username in data.get('sharedWith', []):
+            if username != creator:
+                share_request = ListShareRequest(
+                    list_id=new_list.id,
+                    from_user=creator,
+                    to_user=username,
+                    status='pending',
+                    message=f'Added you while creating the list "{data["name"]}"'
+                )
+                db.session.add(share_request)
         
         db.session.commit()
         return jsonify(new_list.as_dict()), 201
         
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        print(f"Database error in create_list endpoint: {str(e)}")
-        return jsonify({"error": "Database error occurred"}), 500
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
@@ -510,22 +591,39 @@ def update_list(list_id):
     try:
         data = request.get_json()
         expense_list = ExpenseList.query.get_or_404(list_id)
+
+        # Validate that there's at least one participant or shared user
+        if not data.get('participants') and not data.get('sharedWith'):
+            return jsonify({"error": "List must have at least one participant or shared user"}), 400
+
         expense_list.name = data['name']
+        expense_list.participants = ','.join(data['participants']) if data.get('participants') else ''
         
-        ListParticipant.query.filter_by(list_id=list_id).delete()
-        for username in data['participants']:
-            participant = ListParticipant(
-                list_id=list_id,
-                username=username
-            )
-            db.session.add(participant)
+        # Don't delete existing participants, just add new share requests
+        existing_participants = set(p.username for p in ListParticipant.query.filter_by(list_id=list_id).all())
+
+        # Add new share requests only for users who aren't already participants
+        for username in data.get('sharedWith', []):
+            if username not in existing_participants:
+                existing_request = ListShareRequest.query.filter_by(
+                    list_id=list_id,
+                    to_user=username,
+                    status='pending'
+                ).first()
+                
+                if not existing_request:
+                    share_request = ListShareRequest(
+                        list_id=list_id,
+                        from_user=expense_list.created_by,
+                        to_user=username,
+                        status='pending',
+                        message=f'Added you while editing the list "{data["name"]}"'
+                    )
+                    db.session.add(share_request)
         
         db.session.commit()
         return jsonify(expense_list.as_dict())
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        print(f"Database error in update_list endpoint: {str(e)}")
-        return jsonify({"error": "Database error occurred"}), 500
+
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
@@ -533,35 +631,142 @@ def update_list(list_id):
 @app.route('/lists/<int:list_id>', methods=['DELETE'])
 def delete_list(list_id):
     try:
-        # Get the list first
+        # Get the list
         expense_list = ExpenseList.query.get_or_404(list_id)
+        requested_by = request.args.get('username')
         
-        # Delete related records one by one with error checking
-        try:
-            # Delete participants
-            ListParticipant.query.filter_by(list_id=list_id).delete()
-            
-            # Delete expenses (only if list_id column exists)
-            if hasattr(Expense, 'list_id'):
-                Expense.query.filter_by(list_id=list_id).delete()
-            
-            # Finally delete the list
-            db.session.delete(expense_list)
+        if not requested_by:
+            return jsonify({'error': 'Username required'}), 400
+
+        # Count registered users
+        registered_users = ListParticipant.query.filter_by(list_id=list_id).count()
+        if registered_users > 1:
+            # Create deletion request
+            deletion_request = ListDeletionRequest(
+                list_id=list_id,
+                requested_by=requested_by
+            )
+            db.session.add(deletion_request)
             db.session.commit()
-            
-            return jsonify({"message": "List deleted successfully"}), 200
-            
-        except Exception as e:
-            db.session.rollback()
-            return jsonify({"error": f"Error during deletion: {str(e)}"}), 500
-            
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        print(f"Database error in delete_list endpoint: {str(e)}")
-        return jsonify({"error": "Database error occurred"}), 500
+
+            # Create pending approvals for all participants except requester
+            participants = ListParticipant.query.filter(
+                ListParticipant.list_id == list_id,
+                ListParticipant.username != requested_by
+            ).all()
+
+            for participant in participants:
+                approval = ListDeletionApproval(
+                    request_id=deletion_request.id,
+                    username=participant.username
+                )
+                db.session.add(approval)
+
+            db.session.commit()
+            return jsonify({
+                'message': 'Deletion request created, waiting for approvals',
+                'request_id': deletion_request.id
+            }), 202
+        else:
+            # If only one user, delete immediately
+            # Delete related records one by one with error checking
+            try:
+                # Delete participants
+                ListParticipant.query.filter_by(list_id=list_id).delete()
+                
+                # Delete expenses (only if list_id column exists)
+                if hasattr(Expense, 'list_id'):
+                    Expense.query.filter_by(list_id=list_id).delete()
+                
+                # Finally delete the list
+                db.session.delete(expense_list)
+                db.session.commit()
+                
+                return jsonify({"message": "List deleted successfully"}), 200
+                
+            except Exception as e:
+                db.session.rollback()
+                return jsonify({"error": f"Error during deletion: {str(e)}"}), 500
+
     except Exception as e:
-        return jsonify({"error": f"List not found or error occurred: {str(e)}"}), 404
-    
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/lists/<int:list_id>/deletion-requests', methods=['GET'])
+def get_deletion_requests(list_id):
+    try:
+        requests = ListDeletionRequest.query.filter_by(
+            list_id=list_id,
+            status='pending'
+        ).all()
+        return jsonify([req.as_dict() for req in requests]), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/deletion-requests/<int:request_id>/approve', methods=['POST'])
+def approve_deletion_request(request_id):
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        approved = data.get('approved', False)
+
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+
+        # Update approval
+        approval = ListDeletionApproval.query.filter_by(
+            request_id=request_id,
+            username=username
+        ).first()
+
+        if not approval:
+            return jsonify({'error': 'Approval request not found'}), 404
+
+        approval.approved = approved
+        
+        # If rejected, mark the deletion request as rejected
+        deletion_request = ListDeletionRequest.query.get(request_id)
+        if not approved:
+            deletion_request.status = 'rejected'
+            db.session.commit()
+            return jsonify({'message': 'Deletion request rejected'}), 200
+
+        db.session.commit()
+
+        # Check if all participants have approved
+        all_approvals = ListDeletionApproval.query.filter_by(request_id=request_id).all()
+        
+        if all(a.approved for a in all_approvals):
+            # Delete the list
+            expense_list = ExpenseList.query.get(deletion_request.list_id)
+            if expense_list:
+                # Delete related records one by one with error checking
+                try:
+                    # Delete participants
+                    ListParticipant.query.filter_by(list_id=expense_list.id).delete()
+                    
+                    # Delete expenses (only if list_id column exists)
+                    if hasattr(Expense, 'list_id'):
+                        Expense.query.filter_by(list_id=expense_list.id).delete()
+                    
+                    # Finally delete the list
+                    db.session.delete(expense_list)
+                    db.session.commit()
+                    
+                    deletion_request.status = 'approved'
+                    db.session.commit()
+                    return jsonify({"message": "List deleted successfully"}), 200
+                    
+                except Exception as e:
+                    db.session.rollback()
+                    return jsonify({"error": f"Error during deletion: {str(e)}"}), 500
+        
+        return jsonify({'message': 'Approval recorded'}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/lists/<int:list_id>', methods=['GET'])
 def get_list(list_id):
     try:
@@ -582,8 +787,137 @@ def serve(path):
         return send_from_directory(app.static_folder, path)
     else:
         return send_from_directory(app.static_folder, 'index.html')
+    
+@app.route('/lists/<int:list_id>/share', methods=['POST'])
+def share_list(list_id):
+    try:
+        data = request.get_json()
+        to_username = data.get('username')
+        from_username = data.get('from_username')
+        message = data.get('message', '')  # Get optional message
+
+        if not from_username:
+            return jsonify({'error': 'From username is required'}), 400
+        
+        # Check if user exists
+        user = User.query.filter_by(username=to_username).first()
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+
+        # Don't allow sharing with self
+        if to_username == from_username:
+            return jsonify({'error': 'Cannot share list with yourself'}), 400
+
+        # Check if already shared or pending
+        existing_participant = ListParticipant.query.filter_by(
+            list_id=list_id, 
+            username=to_username
+        ).first()
+        
+        if existing_participant:
+            return jsonify({'error': 'List already shared with this user'}), 400
+
+        existing_request = ListShareRequest.query.filter_by(
+            list_id=list_id,
+            to_user=to_username,
+            status='pending'
+        ).first()
+        
+        if existing_request:
+            return jsonify({'error': 'Share request already pending'}), 400
+
+        # Create share request
+        share_request = ListShareRequest(
+            list_id=list_id,
+            from_user=from_username,
+            to_user=to_username,
+            status='pending',
+            message=message
+        )
+        
+        db.session.add(share_request)
+        db.session.commit()
+
+        return jsonify({'message': 'Share request sent successfully'}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error in share_list endpoint: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/share-requests', methods=['GET'])
+def get_share_requests():
+    username = request.args.get('username')
+    if not username:
+        return jsonify({'error': 'Username required'}), 400
+
+    requests = ListShareRequest.query.filter_by(
+        to_user=username,
+        status='pending'
+    ).all()
+    
+    return jsonify([req.as_dict() for req in requests]), 200
+
+@app.route('/share-requests/<int:request_id>/respond', methods=['POST'])
+def respond_to_share_request(request_id):
+    try:
+        data = request.get_json()
+        accept = data.get('accept', False)
+        
+        share_request = ListShareRequest.query.get_or_404(request_id)
+        share_request.status = 'accepted' if accept else 'rejected'
+        
+        if accept:
+            # Add user as participant
+            participant = ListParticipant(
+                list_id=share_request.list_id,
+                username=share_request.to_user,
+                role='member'
+            )
+            db.session.add(participant)
+            
+            # Recalculate debts for the list and emit to all participants
+            list_participants = set()
+            list_participants.add(share_request.to_user)  # Add new participant
+            
+            # Get all current participants
+            for p in ListParticipant.query.filter_by(list_id=share_request.list_id).all():
+                list_participants.add(p.username)
+                
+            # Get list creator
+            expense_list = ExpenseList.query.get(share_request.list_id)
+            if expense_list:
+                list_participants.add(expense_list.created_by)
+            
+            # Calculate and emit debts for all participants
+            for username in list_participants:
+                debts = calculate_debts_internal(username, share_request.list_id)
+                socketio.emit(f'expensesUpdated_{username}_{share_request.list_id}', debts)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': f'Share request {"accepted" if accept else "rejected"} successfully'
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/users/check', methods=['GET'])
+def check_user():
+    username = request.args.get('username')
+    if not username:
+        return jsonify({'error': 'Username is required'}), 400
+    
+    user = User.query.filter_by(username=username).first()
+    return jsonify({'exists': user is not None})
 
 if __name__ == '__main__':
     with app.app_context():
-        db.create_all()
+        try:
+            db.create_all()
+            print("Database tables created successfully")
+        except Exception as e:
+            print(f"Error creating database tables: {str(e)}")
     socketio.run(app, debug=True, port=5000)

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import { fetchCategories } from '../../api';
-import PayerSelector from '../settings/PayerSelector';
 import ParticipantsSelector from '../settings/ParticipantsSelector';
 import CategorySelector from '../settings/CategorySelector';
+import { FaUserCog } from 'react-icons/fa';
 
 function AddExpenseForm({ onSubmit, currentUser, currentList }) {
   const { theme } = useTheme();
@@ -15,7 +15,8 @@ function AddExpenseForm({ onSubmit, currentUser, currentList }) {
     date: new Date().toISOString().split('T')[0],
     participants: []
   });
-  const [payers, setPayers] = useState([]);
+  const [payers, setPayers] = useState([]); // registered participants: objects { username, name }
+  const [nonRegisteredPayers, setNonRegisteredPayers] = useState([]); // non-registered: array of strings
   const [categories, setCategories] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -23,23 +24,33 @@ function AddExpenseForm({ onSubmit, currentUser, currentList }) {
   useEffect(() => {
     const loadData = async () => {
       try {
-        if (!currentList || !currentList.participants) {
+        if (!currentList) {
           setError('No list data available');
           return;
         }
 
-        const payersList = currentList.participants.map((name, index) => ({
-          id: index,
-          name: name
+        // Convert registered participants array from strings to objects with username and name
+        const registered = (currentList.registered_participants || []).map(username => ({
+          username: username,
+          name: username
+        }));
+        const nonRegistered = currentList.non_registered_participants || [];
+
+        setPayers(registered);
+        setNonRegisteredPayers(nonRegistered);
+
+        // Create initial participants list with type prefixes
+        const initialParticipants = [
+          ...registered.map(p => `registered:${p.name}`),
+          ...nonRegistered.map(name => `nonRegistered:${name}`)
+        ];
+
+        setFormData(prev => ({
+          ...prev,
+          participants: initialParticipants
         }));
 
         const categoriesList = await fetchCategories(currentUser, currentList.id);
-
-        setPayers(payersList);
-        setFormData(prev => ({
-          ...prev,
-          participants: currentList.participants
-        }));
         setCategories(categoriesList);
       } catch (error) {
         setError('Failed to load data');
@@ -97,6 +108,14 @@ function AddExpenseForm({ onSubmit, currentUser, currentList }) {
     }
   };
 
+  const handlePayerSelection = (payerType, payerValue) => {
+    setFormData(prev => ({ 
+      ...prev, 
+      payer: payerValue,
+      payerType: payerType // Store the type of payer (registered/non-registered)
+    }));
+  };
+
   return (
     <div className="component-container">
       <div className="component-header">
@@ -124,11 +143,58 @@ function AddExpenseForm({ onSubmit, currentUser, currentList }) {
             display: 'block',
             fontSize: '0.9rem'
           }}>Payer</label>
-          <PayerSelector
-            payers={payers}
-            selectedPayer={formData.payer}
-            onSelect={(payer) => setFormData({ ...formData, payer })}
-          />
+          
+          <div style={{ 
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '8px'
+          }}>
+            {payers.map((p) => (
+              <button 
+                type="button"
+                key={`registered:${p.username}`} 
+                onClick={() => handlePayerSelection('registered', p.name)}
+                style={{ 
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '8px 12px',
+                  borderRadius: '20px',
+                  border: 'none',
+                  backgroundColor: formData.payer === p.name && formData.payerType === 'registered' 
+                    ? theme.primary 
+                    : theme.surface,
+                  color: formData.payer === p.name && formData.payerType === 'registered'
+                    ? 'white' 
+                    : theme.text,
+                  cursor: 'pointer'
+                }}
+              >
+                <FaUserCog style={{ marginRight: '6px' }} />
+                {p.name}
+              </button>
+            ))}
+            {nonRegisteredPayers.map((name) => (
+              <button
+                type="button"
+                key={`nonRegistered:${name}`}
+                onClick={() => handlePayerSelection('nonRegistered', name)}
+                style={{ 
+                  padding: '8px 12px',
+                  borderRadius: '20px',
+                  border: 'none',
+                  backgroundColor: formData.payer === name && formData.payerType === 'nonRegistered'
+                    ? theme.primary 
+                    : theme.surface,
+                  color: formData.payer === name && formData.payerType === 'nonRegistered'
+                    ? 'white' 
+                    : theme.text,
+                  cursor: 'pointer'
+                }}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="form-group" style={{ gridColumn: 'span 1' }}>
@@ -231,8 +297,9 @@ function AddExpenseForm({ onSubmit, currentUser, currentList }) {
             </div>
           </div>
           <ParticipantsSelector
-            payers={payers}
-            selectedParticipants={formData.participants}
+            registeredPayers={payers}
+            nonRegisteredPayers={nonRegisteredPayers}
+            participants={formData.participants}
             onSelect={(participants) => setFormData({ ...formData, participants })}
           />
         </div>
@@ -258,7 +325,6 @@ function AddExpenseForm({ onSubmit, currentUser, currentList }) {
           {isSubmitting ? 'Adding...' : 'Add Expense'}
         </button>
       </form>
-
       {error && (
         <div style={{ 
           color: theme.error,
