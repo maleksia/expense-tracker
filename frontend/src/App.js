@@ -257,6 +257,7 @@ function AppContent() {
                 currentUser={currentUser}
                 currentList={currentList}
                 expenses={expenses}
+                setExpenses={setExpenses}
                 handleAddExpense={handleAddExpense}
                 handleDeleteExpense={handleDeleteExpense}
               />

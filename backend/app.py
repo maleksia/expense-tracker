@@ -913,6 +913,48 @@ def check_user():
     user = User.query.filter_by(username=username).first()
     return jsonify({'exists': user is not None})
 
+@app.route('/update-expense/<int:id>', methods=['PUT'])
+def update_expense(id):
+    try:
+        expense = Expense.query.get_or_404(id)
+        data = request.get_json()
+        
+        # Process prefixed participants
+        participants = data.get('participants', [])
+        processed_participants = []
+        
+        for participant in participants:
+            parts = participant.split(':')
+            if len(parts) == 2:
+                participant_type, name = parts
+                processed_participants.append(name)
+            else:
+                processed_participants.append(participant)
+        
+        # Update expense fields
+        expense.payer = data['payer']
+        expense.amount = float(data['amount'])
+        expense.description = data['description']
+        expense.category = data['category']
+        expense.date = datetime.strptime(data['date'], '%Y-%m-%d')
+        expense.participants = ','.join(processed_participants)
+        
+        db.session.commit()
+        
+        # Return updated expense
+        expense_dict = expense.as_dict()
+        expense_dict['participants'] = processed_participants
+        
+        # Recalculate debts
+        debts = calculate_debts_internal(expense.username, expense.list_id)
+        socketio.emit(f'expensesUpdated_{expense.username}_{expense.list_id}', debts)
+        
+        return jsonify(expense_dict), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     with app.app_context():
         try:

@@ -5,16 +5,32 @@ import ParticipantsSelector from '../settings/ParticipantsSelector';
 import CategorySelector from '../settings/CategorySelector';
 import { FaUserCog } from 'react-icons/fa';
 
-function AddExpenseForm({ onSubmit, currentUser, currentList }) {
+function AddExpenseForm({ onSubmit, currentUser, currentList, initialData = null, onCancel = null }) {
   const { theme } = useTheme();
-  const [formData, setFormData] = useState({
+  const initialFormState = {
     payer: '',
     amount: '',
     description: '',
     category: '',
     date: new Date().toISOString().split('T')[0],
     participants: []
-  });
+  };
+
+  const [formData, setFormData] = useState(initialFormState);
+
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        ...initialData,
+        amount: initialData.amount.toString(),
+        participants: initialData.participants.map(p => {
+          const isRegistered = currentList?.registered_participants?.includes(p);
+          return isRegistered ? `registered:${p}` : `nonRegistered:${p}`;
+        })
+      });
+    }
+  }, [initialData, currentList]);
+
   const [payers, setPayers] = useState([]); // registered participants: objects { username, name }
   const [nonRegisteredPayers, setNonRegisteredPayers] = useState([]); // non-registered: array of strings
   const [categories, setCategories] = useState([]);
@@ -91,14 +107,7 @@ function AddExpenseForm({ onSubmit, currentUser, currentList }) {
     try {
       const success = await onSubmit(formData);
       if (success) {
-        setFormData({
-          payer: '',
-          amount: '',
-          description: '',
-          category: '',
-          date: new Date().toISOString().split('T')[0],
-          participants: []
-        });
+        setFormData(initialFormState);
       }
     } catch (error) {
       console.error('Error submitting expense:', error);
@@ -116,10 +125,18 @@ function AddExpenseForm({ onSubmit, currentUser, currentList }) {
     }));
   };
 
+  const handleCancel = () => {
+    setFormData(initialFormState);
+    setError('');
+    onCancel();
+  };
+
   return (
     <div className="component-container">
       <div className="component-header">
-        <h2 className="component-title">Add New Expense</h2>
+        <h2 className="component-title">
+          {initialData ? 'Edit Expense' : 'Add New Expense'}
+        </h2>
       </div>
 
       <form onSubmit={handleSubmit} className="expense-form-grid" style={{
@@ -304,26 +321,51 @@ function AddExpenseForm({ onSubmit, currentUser, currentList }) {
           />
         </div>
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          style={{
-            backgroundColor: theme.primary,
-            color: '#fff',
-            padding: '12px 24px',
-            border: 'none',
-            borderRadius: '6px',
-            fontSize: '1rem',
-            fontWeight: '500',
-            cursor: 'pointer',
-            opacity: isSubmitting ? 0.7 : 1,
-            transition: 'transform 0.2s, opacity 0.2s',
-            gridColumn: '1 / -1',
-            marginTop: '32px'
-          }}
-        >
-          {isSubmitting ? 'Adding...' : 'Add Expense'}
-        </button>
+        <div style={{ 
+          display: 'flex',
+          gap: '12px',
+          gridColumn: '1 / -1',
+          marginTop: '32px'
+        }}>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            style={{
+              backgroundColor: theme.primary,
+              color: '#fff',
+              padding: '12px 24px',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '1rem',
+              fontWeight: '500',
+              cursor: 'pointer',
+              opacity: isSubmitting ? 0.7 : 1,
+              flex: '1'
+            }}
+          >
+            {isSubmitting ? 'Saving...' : initialData ? 'Save Changes' : 'Add Expense'}
+          </button>
+
+          {onCancel && (
+            <button
+              type="button"
+              onClick={handleCancel}  // Changed from onCancel to handleCancel
+              style={{
+                backgroundColor: theme.surface,
+                color: theme.text,
+                padding: '12px 24px',
+                border: `1px solid ${theme.border}`,
+                borderRadius: '6px',
+                fontSize: '1rem',
+                fontWeight: '500',
+                cursor: 'pointer',
+                flex: '1'
+              }}
+            >
+              Cancel
+            </button>
+          )}
+        </div>
       </form>
       {error && (
         <div style={{ 
