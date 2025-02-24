@@ -3,17 +3,19 @@ import React, { useState, useEffect } from 'react';
 function EditListModal({ list, onSubmit, onClose, theme }) {
   const [listData, setListData] = useState({
     name: list.name,
-    participants: list.non_registered_participants || [],
-    sharedWith: []
+    participants: (list.participants || '').split(',')
+      .filter(p => p.startsWith('nonRegistered:'))
+      .map(p => p.split(':')[1]),
+    sharedWith: [],
+    existingSharedUsers: new Set(list.registered_participants || [])
   });
 
-  // Initialize with existing registered participants if needed
+  // Update listData with existing participants
   useEffect(() => {
     if (list.registered_participants?.length > 0) {
       setListData(prev => ({
         ...prev,
-        sharedWith: [...list.registered_participants],
-        existingSharedUsers: new Set(list.registered_participants) // Add this line to track existing users
+        sharedWith: [...list.registered_participants]
       }));
     }
   }, [list]);
@@ -48,12 +50,26 @@ function EditListModal({ list, onSubmit, onClose, theme }) {
   };
 
   const handleAddParticipant = () => {
-    if (participantInput && !listData.participants.includes(participantInput)) {
+    if (!participantInput.trim()) return;
+    
+    // Only check against existing non-registered participants
+    const isDuplicateNonRegistered = listData.participants.includes(participantInput);
+    
+    if (!isDuplicateNonRegistered) {
       setListData(prev => ({
         ...prev,
         participants: [...prev.participants, participantInput]
       }));
       setParticipantInput('');
+      
+      // Just show info message if a registered user with same name exists
+      if (listData.sharedWith.includes(participantInput)) {
+        setError('Note: A registered user with this name exists');
+        setTimeout(() => setError(''), 3000);
+      }
+    } else {
+      setError('This participant is already added');
+      setTimeout(() => setError(''), 3000);
     }
   };
 
@@ -78,6 +94,11 @@ function EditListModal({ list, onSubmit, onClose, theme }) {
     } catch (error) {
       setError('Failed to verify user');
     }
+  };
+
+  const handleCancel = () => {
+    // Just close the modal without making any changes
+    onClose();
   };
 
   return (
@@ -275,7 +296,7 @@ function EditListModal({ list, onSubmit, onClose, theme }) {
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
           <button
-            onClick={onClose}
+            onClick={handleCancel}
             style={{
               padding: '10px 20px',
               backgroundColor: theme.surface,
@@ -305,6 +326,5 @@ function EditListModal({ list, onSubmit, onClose, theme }) {
     </div>
   );
 }
-
 
 export default EditListModal;

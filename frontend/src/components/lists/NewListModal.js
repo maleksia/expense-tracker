@@ -12,12 +12,27 @@ function NewListModal({ onSubmit, onClose, theme }) {
   const [error, setError] = useState('');
 
   const handleAddParticipant = () => {
-    if (participantInput && !listData.participants.includes(participantInput)) {
+    if (!participantInput.trim()) return;
+
+    // Remove the duplicate name check against sharedWith
+    // Just check if the name exists in non-registered participants
+    const isDuplicateNonRegistered = listData.participants.includes(participantInput);
+    
+    if (!isDuplicateNonRegistered) {
       setListData(prev => ({
         ...prev,
         participants: [...prev.participants, participantInput]
       }));
       setParticipantInput('');
+      
+      // Just show info message if a registered user with same name exists
+      if (listData.sharedWith.includes(participantInput)) {
+        setError('Note: A registered user with this name exists');
+        setTimeout(() => setError(''), 3000);
+      }
+    } else {
+      setError('This participant already exists');
+      setTimeout(() => setError(''), 3000);
     }
   };
 

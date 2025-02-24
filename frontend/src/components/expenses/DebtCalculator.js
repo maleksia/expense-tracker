@@ -5,7 +5,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useCurrency } from '../../context/CurrencyContext';
 import { FaUserCog } from 'react-icons/fa';
 
-function DebtCalculator({ currentUser, currentList }) {
+function DebtCalculator({ expenses, currentUser, currentList }) {
   const { theme } = useTheme();
   const { listCurrencies } = useCurrency();
   const [debts, setDebts] = useState({});
@@ -73,7 +73,14 @@ function DebtCalculator({ currentUser, currentList }) {
   };
 
   const renderUser = (username) => {
-    const isRegistered = currentList?.registered_participants?.includes(username);
+    if (!username) return null;
+    
+    // Parse the username which should be in format "status:name"
+    const parts = username.split(':');
+    if (parts.length !== 2) return username; // Fallback if format is unexpected
+    
+    const [status, name] = parts;
+    const isRegistered = status === 'registered';
     
     return (
       <span style={{ 
@@ -90,7 +97,7 @@ function DebtCalculator({ currentUser, currentList }) {
             }} 
           />
         )}
-        {username}
+        {name}
       </span>
     );
   };

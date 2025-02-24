@@ -23,13 +23,10 @@ function AddExpenseForm({ onSubmit, currentUser, currentList, initialData = null
       setFormData({
         ...initialData,
         amount: initialData.amount.toString(),
-        participants: initialData.participants.map(p => {
-          const isRegistered = currentList?.registered_participants?.includes(p);
-          return isRegistered ? `registered:${p}` : `nonRegistered:${p}`;
-        })
+        participants: initialData.participants || []
       });
     }
-  }, [initialData, currentList]);
+  }, [initialData]);
 
   const [payers, setPayers] = useState([]); // registered participants: objects { username, name }
   const [nonRegisteredPayers, setNonRegisteredPayers] = useState([]); // non-registered: array of strings
@@ -105,7 +102,16 @@ function AddExpenseForm({ onSubmit, currentUser, currentList, initialData = null
     setIsSubmitting(true);
 
     try {
-      const success = await onSubmit(formData);
+        // Create complete payer identifier if not already prefixed
+        const payerWithPrefix = formData.payer.includes(':') 
+            ? formData.payer 
+            : `${formData.payerType}:${formData.payer}`;
+
+        const success = await onSubmit({
+            ...formData,
+            payer: payerWithPrefix,
+            // participants already have prefixes from ParticipantsSelector
+        });
       if (success) {
         setFormData(initialFormState);
       }
@@ -129,6 +135,10 @@ function AddExpenseForm({ onSubmit, currentUser, currentList, initialData = null
     setFormData(initialFormState);
     setError('');
     onCancel();
+  };
+
+  const handleCategoryChange = (updatedCategories) => {
+    setCategories(updatedCategories);
   };
 
   return (
@@ -174,7 +184,7 @@ function AddExpenseForm({ onSubmit, currentUser, currentList, initialData = null
                 style={{ 
                   display: 'flex',
                   alignItems: 'center',
-                  padding: '8px 12px',
+                  padding: '10px 16px',
                   borderRadius: '20px',
                   border: 'none',
                   backgroundColor: formData.payer === p.name && formData.payerType === 'registered' 
@@ -183,10 +193,12 @@ function AddExpenseForm({ onSubmit, currentUser, currentList, initialData = null
                   color: formData.payer === p.name && formData.payerType === 'registered'
                     ? 'white' 
                     : theme.text,
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  fontSize: '1rem',
+                  fontWeight: '500'
                 }}
               >
-                <FaUserCog style={{ marginRight: '6px' }} />
+                <FaUserCog style={{ marginRight: '8px', fontSize: '1.1rem' }} /> {/* Increased icon size */}
                 {p.name}
               </button>
             ))}
@@ -196,7 +208,7 @@ function AddExpenseForm({ onSubmit, currentUser, currentList, initialData = null
                 key={`nonRegistered:${name}`}
                 onClick={() => handlePayerSelection('nonRegistered', name)}
                 style={{ 
-                  padding: '8px 12px',
+                  padding: '10px 16px',
                   borderRadius: '20px',
                   border: 'none',
                   backgroundColor: formData.payer === name && formData.payerType === 'nonRegistered'
@@ -205,7 +217,9 @@ function AddExpenseForm({ onSubmit, currentUser, currentList, initialData = null
                   color: formData.payer === name && formData.payerType === 'nonRegistered'
                     ? 'white' 
                     : theme.text,
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  fontSize: '1rem',
+                  fontWeight: '500'
                 }}
               >
                 {name}
@@ -245,6 +259,9 @@ function AddExpenseForm({ onSubmit, currentUser, currentList, initialData = null
             categories={categories}
             selectedCategory={formData.category}
             onSelect={(category) => setFormData({ ...formData, category })}
+            currentUser={currentUser}
+            currentList={currentList}
+            onCategoriesChange={handleCategoryChange}
           />
         </div>
 
@@ -349,7 +366,7 @@ function AddExpenseForm({ onSubmit, currentUser, currentList, initialData = null
           {onCancel && (
             <button
               type="button"
-              onClick={handleCancel}  // Changed from onCancel to handleCancel
+              onClick={handleCancel}
               style={{
                 backgroundColor: theme.surface,
                 color: theme.text,

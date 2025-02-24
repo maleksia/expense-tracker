@@ -64,10 +64,7 @@ function ExpenseListsView({ currentUser, onListSelect }) {
             const newList = await createList({
                 ...listData,
                 createdBy: currentUser,
-                participants: [
-                    ...listData.participants,
-                    ...(listData.includeCreator ? [currentUser] : [])
-                ].filter((p, i, arr) => arr.indexOf(p) === i)  // Remove duplicates
+                participants: listData.participants
             });
             setLists(prev => [...prev, newList]);
             setShowNewListModal(false);
@@ -242,6 +239,31 @@ function ExpenseListsView({ currentUser, onListSelect }) {
         }
     };
 
+    const formatParticipant = (participant) => {
+        // Skip if participant is empty or undefined
+        if (!participant) return null;
+        
+        // Split into status and name parts
+        const [status, name] = participant.split(':');
+        const isRegistered = status === 'registered';
+        
+        return (
+            <span key={participant} style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                backgroundColor: isRegistered ? `${theme.primary}15` : theme.surface,
+                padding: '4px 8px',
+                borderRadius: '12px',
+                margin: '2px',
+                fontSize: '0.85rem'
+            }}>
+                {isRegistered && <FaUserCog size={12} color={theme.primary} />}
+                {name}
+            </span>
+        );
+    };
+
     if (loading) return <div className="loading">Loading...</div>;
 
     return (
@@ -400,36 +422,11 @@ function ExpenseListsView({ currentUser, onListSelect }) {
                         <div className="list-card-info">
                             <p>
                                 <FaUsers style={{ marginRight: '8px' }} />
-                                {/* Render registered participants */}
-                                {list.registered_participants?.map((participant, index) => (
-                                    <span key={`reg-${index}`} className="participants-tag registered" style={{
-                                        backgroundColor: theme.primary,
-                                        color: 'white',
-                                        padding: '4px 8px',
-                                        borderRadius: '12px',
-                                        margin: '2px',
-                                        fontSize: '0.85rem',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '4px'
-                                    }}>
-                                        <FaUserCog size={12} />
-                                        {participant}
-                                    </span>
-                                ))}
-                                {/* Render non-registered participants */}
-                                {list.non_registered_participants?.map((participant, index) => (
-                                    <span key={`nonreg-${index}`} className="participants-tag" style={{
-                                        backgroundColor: theme.participantTag,
-                                        color: theme.textHighlight,
-                                        padding: '4px 8px',
-                                        borderRadius: '12px',
-                                        margin: '2px',
-                                        fontSize: '0.85rem'
-                                    }}>
-                                        {participant}
-                                    </span>
-                                ))}
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                    {list.participants?.split(',')
+                                        .filter(Boolean) // Remove empty strings
+                                        .map(formatParticipant)}
+                                </div>
                             </p>
                             <p>
                                 <FaCalendarAlt style={{ marginRight: '8px' }} />

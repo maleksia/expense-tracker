@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { baseApiUrl } from '../../api/config';
-import { FaChartLine, FaCalculator, FaHistory } from 'react-icons/fa';
+import { FaChartLine, FaCalculator, FaHistory, FaEye, FaEyeSlash, FaCheck, FaTimes } from 'react-icons/fa';
+import { CgSpinner } from 'react-icons/cg';
 
 function AuthForm({ onLogin }) {
   const navigate = useNavigate();
@@ -10,6 +11,26 @@ function AuthForm({ onLogin }) {
   const [formData, setFormData] = useState({ username: '', password: '' });
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [validations, setValidations] = useState({
+    length: false,
+    hasNumber: false,
+    hasLetter: false
+  });
+
+  const validatePassword = (password) => {
+    setValidations({
+      length: password.length >= 3,
+      hasNumber: /\d/.test(password),
+      hasLetter: /[a-zA-Z]/.test(password)
+    });
+  };
+
+  const handlePasswordChange = (e) => {
+    const newPassword = e.target.value;
+    setFormData({ ...formData, password: newPassword });
+    validatePassword(newPassword);
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -27,16 +48,20 @@ function AuthForm({ onLogin }) {
       if (isLogin) {
         onLogin(formData.username);
         navigate('/');
+      } else {
+        // Show success message and switch to login form
+        setMessage('Registration successful! You can now log in.');
+        setIsLogin(true);
       }
     })
     .catch((error) => {
       setLoading(false);
       if (error.response) {
+        // Use the server's error message directly
         setMessage(error.response.data.error || 'An error occurred');
       } else {
-        setMessage('An error occurred. Please try again.');
+        setMessage('Network error. Please try again.');
       }
-      console.error('Error:', error);
     });
   };
 
@@ -67,27 +92,76 @@ function AuthForm({ onLogin }) {
       <div className="auth-form-container">
         <h2>{isLogin ? 'Login' : 'Register'}</h2>
         <form onSubmit={handleSubmit}>
-          <input
-            type="text"
-            name="username"
-            placeholder="Username"
-            value={formData.username}
-            onChange={(e) => setFormData({...formData, username: e.target.value})}
-            required
-          />
-          <input
-            type="password"
-            name="password"
-            placeholder="Password"
-            value={formData.password}
-            onChange={(e) => setFormData({...formData, password: e.target.value})}
-            required
-          />
-          <button type="submit" disabled={loading}>
-            {loading ? 'Please wait...' : (isLogin ? 'Login' : 'Register')}
+          <div className="form-group">
+            <input
+              type="text"
+              name="username"
+              value={formData.username}
+              onChange={(e) => setFormData({...formData, username: e.target.value})}
+              required
+              className={formData.username.length > 0 ? 'has-content' : ''}
+            />
+            <label className="floating-label">Username</label>
+          </div>
+
+          <div className="form-group password-group">
+            <input
+              type={showPassword ? "text" : "password"}
+              name="password"
+              value={formData.password}
+              onChange={handlePasswordChange}
+              required
+              className={formData.password.length > 0 ? 'has-content' : ''}
+            />
+            <label className="floating-label">Password</label>
+            <button
+              type="button"
+              className="toggle-password"
+              onClick={() => setShowPassword(!showPassword)}
+            >
+              {showPassword ? <FaEyeSlash /> : <FaEye />}
+            </button>
+          </div>
+
+          {!isLogin && (
+            <div className="password-requirements">
+              <p className={validations.length ? 'valid' : 'invalid'}>
+                {validations.length ? <FaCheck /> : <FaTimes />}
+                At least 3 characters
+              </p>
+              <p className={validations.hasLetter ? 'valid' : 'invalid'}>
+                {validations.hasLetter ? <FaCheck /> : <FaTimes />}
+                Contains a letter
+              </p>
+              <p className={validations.hasNumber ? 'valid' : 'invalid'}>
+                {validations.hasNumber ? <FaCheck /> : <FaTimes />}
+                Contains a number
+              </p>
+            </div>
+          )}
+
+          <button 
+            type="submit" 
+            disabled={loading || (!isLogin && !Object.values(validations).every(Boolean))}
+            className="submit-button"
+          >
+            {loading ? (
+              <span className="loading-spinner">
+                <CgSpinner className="spinner-icon" />
+                Please wait...
+              </span>
+            ) : (
+              isLogin ? 'Login' : 'Register'
+            )}
           </button>
         </form>
-        {message && <p className="message">{message}</p>}
+
+        {message && (
+          <div className={`message ${message.includes('successful') ? 'success' : 'error'}`}>
+            {message}
+          </div>
+        )}
+
         <button 
           className="switch-button"
           onClick={() => setIsLogin(!isLogin)}

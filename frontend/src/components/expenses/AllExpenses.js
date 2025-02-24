@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { FaFilter, FaSort } from 'react-icons/fa';
+import { FaFilter, FaSort, FaUserCog, FaPencilAlt, FaTrash } from 'react-icons/fa';
 import { useTheme } from '../../context/ThemeContext';
 import { useCurrency } from '../../context/CurrencyContext';
+import AddExpenseForm from './AddExpenseForm';
+import { updateExpense, fetchExpenses } from '../../api';
 
-function AllExpenses({ currentUser, expenses, handleDeleteExpense, currentList }) {
+function AllExpenses({ currentUser, expenses, handleDeleteExpense, setExpenses, currentList }) {
   const { theme } = useTheme();
   const { listCurrencies } = useCurrency();
   const [selectedPayer, setSelectedPayer] = useState('');
@@ -12,6 +14,7 @@ function AllExpenses({ currentUser, expenses, handleDeleteExpense, currentList }
     key: 'date',
     direction: 'desc'
   });
+  const [editingExpense, setEditingExpense] = useState(null);
 
   const currencySymbols = {
     'EUR': '€',
@@ -59,6 +62,89 @@ function AllExpenses({ currentUser, expenses, handleDeleteExpense, currentList }
       (!selectedCategory || expense.category === selectedCategory)
     );
   });
+
+  const formatParticipant = (participant) => {
+    // Skip if participant is empty or undefined
+    if (!participant) return null;
+    
+    // Split into status and name parts
+    const [status, name] = participant.split(':');
+    const isRegistered = status === 'registered';
+    
+    return (
+      <span
+        key={participant}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '4px',
+          backgroundColor: isRegistered ? `${theme.primary}15` : theme.surface,
+          padding: '4px 8px',
+          borderRadius: '12px',
+          margin: '2px',
+          fontSize: '0.85rem'
+        }}
+      >
+        {isRegistered && <FaUserCog size={12} color={theme.primary} />}
+        {name}
+      </span>
+    );
+  };
+
+  const renderPayer = (payer) => {
+    // Parse the payer string which should be in format "status:name"
+    const [status, name] = payer.split(':');
+    const isRegistered = status === 'registered';
+    
+    return (
+      <div style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '4px',
+        backgroundColor: isRegistered ? `${theme.primary}15` : theme.surface,
+        padding: '6px 12px',
+        borderRadius: '20px',
+        fontSize: '0.95rem'
+      }}>
+        {isRegistered && <FaUserCog size={12} color={theme.primary} />}
+        <span style={{ color: theme.text }}>{name}</span>
+      </div>
+    );
+  };
+
+  const handleEditExpense = (expense) => {
+    setEditingExpense(expense);
+  };
+
+  const handleEditComplete = async (updatedData) => {
+    try {
+      await updateExpense(editingExpense.id, {
+        ...updatedData,
+        username: currentUser,
+        list_id: currentList.id
+      });
+      
+      // Refresh expenses list
+      const updatedExpenses = await fetchExpenses(currentUser, currentList.id);
+      setExpenses(updatedExpenses);
+      
+      setEditingExpense(null);
+    } catch (error) {
+      console.error('Failed to update expense:', error);
+    }
+  };
+
+  if (editingExpense) {
+    return (
+      <AddExpenseForm
+        onSubmit={handleEditComplete}
+        currentUser={currentUser}
+        currentList={currentList}
+        initialData={editingExpense}
+        onCancel={() => setEditingExpense(null)}
+      />
+    );
+  }
 
   return (
     <div className="card-container" style={{
@@ -186,22 +272,60 @@ function AllExpenses({ currentUser, expenses, handleDeleteExpense, currentList }
               borderBottom: `1px solid ${theme.border}`
             }}>
               <td>{new Date(expense.date).toLocaleDateString()}</td>
-              <td>{expense.payer}</td>
+              <td>{renderPayer(expense.payer)}</td>
               <td>{expense.amount.toFixed(2)} {currencySymbols[currentCurrency]}</td>
               <td>{expense.description}</td>
               <td>{expense.category}</td>
               <td>
-                <div className="participants-list">
-                  {expense.participants?.join(', ') || expense.payer}
+                <div style={{ 
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '4px'
+                }}>
+                  {expense.participants?.map(formatParticipant)}
                 </div>
               </td>
               <td>
-                <button
-                  onClick={() => handleDeleteExpense(expense.id)}
-                  className="delete-btn"
-                >
-                  Delete
-                </button>
+                <div style={{
+                  display: 'flex',
+                  gap: '8px',
+                  justifyContent: 'flex-start'
+                }}>
+                  <button
+                    onClick={() => handleEditExpense(expense)}
+                    style={{
+                      backgroundColor: theme.primary,
+                      color: '#fff',
+                      border: 'none',
+                      padding: '6px 12px',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <FaPencilAlt size={12} />
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDeleteExpense(expense.id)}
+                    style={{
+                      backgroundColor: theme.error,
+                      color: '#fff',
+                      border: 'none',
+                      padding: '6px 12px',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <FaTrash size={12} />
+                    Delete
+                  </button>
+                </div>
               </td>
             </tr>
           ))}

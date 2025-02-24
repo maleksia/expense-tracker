@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { FaTrashRestore, FaFilter } from 'react-icons/fa';
+import { FaTrashRestore, FaFilter, FaUserCog } from 'react-icons/fa';
 import { useTheme } from '../../context/ThemeContext';
 import { fetchTrash } from '../../api';
 import { useCurrency } from '../../context/CurrencyContext';
@@ -50,6 +50,53 @@ function DeletedExpenses({ currentUser, onRestore, currentList }) {
   const filteredExpenses = deletedExpenses.filter(expense => 
     !selectedPayer || expense.payer === selectedPayer
   );
+
+  const formatParticipant = (participant) => {
+    if (!participant) return null;
+    
+    const [status, name] = participant.split(':');
+    const isRegistered = status === 'registered';
+    
+    return (
+      <span
+        key={participant}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '4px',
+          backgroundColor: isRegistered ? `${theme.primary}15` : theme.surface,
+          padding: '4px 8px',
+          borderRadius: '12px',
+          margin: '2px',
+          fontSize: '0.85rem'
+        }}
+      >
+        {isRegistered && <FaUserCog size={12} color={theme.primary} />}
+        {name}
+      </span>
+    );
+  };
+
+  const renderPayer = (payer) => {
+    // Parse the payer string which should be in format "status:name"
+    const [status, name] = payer.split(':');
+    const isRegistered = status === 'registered';
+    
+    return (
+      <div style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '4px',
+        backgroundColor: isRegistered ? `${theme.primary}15` : theme.surface,
+        padding: '6px 12px',
+        borderRadius: '20px',
+        fontSize: '0.95rem'
+      }}>
+        {isRegistered && <FaUserCog size={12} color={theme.primary} />}
+        <span style={{ color: theme.text }}>{name}</span>
+      </div>
+    );
+  };
 
   return (
     <div className="component-container">
@@ -113,7 +160,7 @@ function DeletedExpenses({ currentUser, onRestore, currentList }) {
         }}>
           <thead>
             <tr>
-              {['Date', 'Description', 'Payer', 'Amount', 'Category', 'Deleted At', 'Actions'].map(header => (
+              {['Date', 'Description', 'Payer', 'Amount', 'Category', 'Deleted At', 'Participants', 'Actions'].map(header => (
                 <th key={header} className="table-header" style={{
                   textAlign:'left'
                 }}>
@@ -132,7 +179,7 @@ function DeletedExpenses({ currentUser, onRestore, currentList }) {
                   {expense.description}
                 </td>
                 <td className="expense-cell">
-                  {expense.payer}
+                  {renderPayer(expense.payer)}
                 </td>
                 <td className="expense-cell">
                   {new Intl.NumberFormat('fi-FI', {
@@ -145,6 +192,15 @@ function DeletedExpenses({ currentUser, onRestore, currentList }) {
                 </td>
                 <td className="expense-cell secondary">
                   {format(new Date(expense.deleted_at), 'dd.MM.yyyy HH:mm')}
+                </td>
+                <td className="expense-cell">
+                  <div style={{ 
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '4px'
+                  }}>
+                    {expense.participants?.map(formatParticipant)}
+                  </div>
                 </td>
                 <td className="expense-cell" style={{
                   padding: '12px 16px',

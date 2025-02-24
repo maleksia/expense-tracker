@@ -94,18 +94,23 @@ class ExpenseList(db.Model):
     registered_participants = db.relationship('ListParticipant', backref='list', lazy=True)
 
     def as_dict(self):
-        # Get all registered participants usernames
-        registered_users = [p.username for p in self.registered_participants]
-        # Get non-registered participants from the participants string
-        non_registered = self.participants.split(',') if self.participants else []
+        registered_participants = [
+            username for username in 
+            self.participants.split(',') if username.startswith('registered:')
+        ]
+        non_registered_participants = [
+            username for username in 
+            self.participants.split(',') if username.startswith('nonRegistered:')
+        ]
         
         return {
             'id': self.id,
             'name': self.name,
             'created_by': self.created_by,
-            'createdAt': self.created_at.isoformat(),
-            'registered_participants': registered_users,
-            'non_registered_participants': non_registered
+            'registered_participants': [p.split(':')[1] for p in registered_participants],
+            'non_registered_participants': [p.split(':')[1] for p in non_registered_participants],
+            'participants': self.participants,
+            'createdAt': self.created_at.isoformat() if self.created_at else None
         }
 
 class ListParticipant(db.Model):

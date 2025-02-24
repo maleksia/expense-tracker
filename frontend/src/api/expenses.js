@@ -32,8 +32,16 @@ export const deleteExpense = async (expenseId) => {
   }
 };
 
-export const updateExpense = (id, updatedExpense) =>
-  API.put(`/update-expense/${id}`, updatedExpense);
+export const updateExpense = async (id, expenseData) => {
+  try {
+    const response = await API.put(`/update-expense/${id}`, expenseData);
+    socket.emit('expenseUpdated', expenseData);
+    return response.data;
+  } catch (error) {
+    console.error("Error updating expense:", error);
+    throw error;
+  }
+};
 
 export const fetchExpensesByDate = (start, end) =>
   API.get(`/expenses-by-date?start=${start}&end=${end}`);

@@ -54,8 +54,11 @@ function ExpenseList({ expenses, onDelete, onEdit, currentList }) {
     }).format(amount);
   };
 
-  const renderParticipant = (participant) => {
-    const isRegistered = currentList.registered_participants?.includes(participant);
+  const formatParticipant = (participant) => {
+    // Split into parts and format
+    const parts = participant.split(':');
+    const name = parts[parts.length - 1];
+    const isRegistered = parts[0] === 'registered';
     
     return (
       <span
@@ -65,15 +68,36 @@ function ExpenseList({ expenses, onDelete, onEdit, currentList }) {
           alignItems: 'center',
           gap: '4px',
           backgroundColor: isRegistered ? `${theme.primary}15` : theme.surface,
-          padding: '2px 8px',
+          padding: '4px 8px',
           borderRadius: '12px',
           margin: '0 4px',
           fontSize: '0.9rem'
         }}
       >
         {isRegistered && <FaUserCog size={12} color={theme.primary} />}
-        {participant}
+        {name}
       </span>
+    );
+  };
+
+  const renderPayer = (payer) => {
+    // Parse the payer string which should be in format "status:name"
+    const [status, name] = payer.split(':');
+    const isRegistered = status === 'registered';
+    
+    return (
+      <div style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '4px',
+        backgroundColor: isRegistered ? `${theme.primary}15` : theme.surface,
+        padding: '6px 12px',
+        borderRadius: '20px',
+        fontSize: '0.95rem'
+      }}>
+        {isRegistered && <FaUserCog size={12} color={theme.primary} />}
+        <span style={{ color: theme.text }}>{name}</span>
+      </div>
     );
   };
 
@@ -134,9 +158,10 @@ function ExpenseList({ expenses, onDelete, onEdit, currentList }) {
           {recentExpenses.map(expense => (
             <tr key={expense.id} className="expense-row">
               <td style={{
-                padding: '12px 16px',
-                color: theme.text
-              }}>{expense.payer}</td>
+                padding: '12px 16px'
+              }}>
+                {renderPayer(expense.payer)}  {/* Update this line */}
+              </td>
               <td style={{
                 padding: '12px 16px',
                 color: theme.textSecondary
@@ -161,7 +186,7 @@ function ExpenseList({ expenses, onDelete, onEdit, currentList }) {
                   gap: '4px',
                   alignItems: 'center'
                 }}>
-                  {expense.participants.map(participant => renderParticipant(participant))}
+                  {expense.participants.map(formatParticipant)}
                 </div>
               </td>
               <td style={{

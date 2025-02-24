@@ -11,7 +11,6 @@ import {
 
 import Navigation from './components/navigation/Navigation';
 import RecentExpenses from './components/expenses/RecentExpenses';
-import AllExpenses from './components/expenses/AllExpenses';
 import AnalyticsDashboard from './components/analytics/AnalyticsDashboard';
 import Settings from './components/settings/Settings';
 import AuthForm from './components/auth/AuthForm';
@@ -20,7 +19,7 @@ import DeletedExpenses from './components/expenses/DeletedExpenses';
 import ExpenseListsView from './components/lists/ExpenseListsView';
 import { LoadingSpinner, Notification, ConfirmDialog } from './components/common/index';
 import NotFound from './components/common/NotFound';
-
+import AllExpenses from './components/expenses/AllExpenses';
 
 console.log('Hello World!!!');
 
@@ -267,10 +266,11 @@ function AppContent() {
           <Route path="/list/:listId/all" element={
             <ProtectedRoute>
               <AllExpenses
-                currentUser={currentUser}
                 expenses={expenses}
+                setExpenses={setExpenses}
                 handleDeleteExpense={handleDeleteExpense}
                 currentList={currentList}
+                currentUser={currentUser}
               />
             </ProtectedRoute>
           } />
