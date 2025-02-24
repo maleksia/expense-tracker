@@ -11,14 +11,17 @@ from sqlalchemy.exc import SQLAlchemyError
 app = Flask(__name__, static_folder='../frontend/build', static_url_path='/')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///expenses.db'
 db.init_app(app)
+
 CORS(app, resources={
     r"/*": {
-        "origins": '*',
+        "origins": ["http://localhost:3000", "https://aleksi.pro"],
         "supports_credentials": True,
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type"]
+        "allow_headers": ["Content-Type", "Authorization"],
+        "expose_headers": ["Content-Range", "X-Content-Range"]
     }
 })
+
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 @app.route('/payers', methods=['OPTIONS', 'GET', 'POST'])
