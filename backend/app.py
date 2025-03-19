@@ -823,9 +823,13 @@ def update_expense(id):
         if ':' not in data['payer']:
             data['payer'] = f"{data['payerType']}:{data['payer']}"
 
-        # Update expense fields
+        # Store old values before update
         old_description = expense.description
         old_amount = expense.amount
+        old_category = expense.category
+        old_payer = expense.payer
+
+        # Update expense fields
         expense.payer = data['payer']
         expense.amount = float(data['amount'])
         expense.description = data['description']
@@ -847,7 +851,11 @@ def update_expense(id):
         if old_description != expense.description:
             changes.append(f"Description: {old_description} → {expense.description}")
         if old_amount != expense.amount:
-            changes.append(f"Amount: {old_amount}€ → {expense.amount}€")
+            changes.append(f"Amount: {old_amount} → {expense.amount}")
+        if old_category != expense.category:
+            changes.append(f"Category: {old_category} → {expense.category}")
+        if old_payer != expense.payer:
+            changes.append(f"Payer: {old_payer} → {expense.payer}")
         
         change_text = " | ".join(changes)
         log_action(expense.list_id, f"User: {expense.username} | Updated expense (ID: {expense.id}) | {change_text}", expense.username)

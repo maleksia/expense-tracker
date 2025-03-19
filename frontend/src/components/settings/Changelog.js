@@ -119,7 +119,7 @@ const Changelog = ({ listId }) => {
                     {getChangeType(entry.action)}
                   </strong>
                   <span style={{ marginLeft: '10px' }}>
-                    {formatDateTime(entry.timestamp)} - {entry.username} {entry.action}
+                    {formatDateTime(entry.timestamp)} - {entry.action}
                   </span>
                 </div>
                 {entry.details && (
