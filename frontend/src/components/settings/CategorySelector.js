@@ -7,7 +7,7 @@ function CategorySelector({ categories, selectedCategory, onSelect, currentUser,
   const { theme } = useTheme();
   const [newCategory, setNewCategory] = useState('');
 
-  const handleAddCategory = async () => {  // Removed 'e' parameter
+  const handleAddCategory = async () => {
     if (!newCategory.trim()) return;
 
     try {
@@ -62,7 +62,7 @@ function CategorySelector({ categories, selectedCategory, onSelect, currentUser,
           }}
         />
         <button
-          type="button"  // Changed from submit to button
+          type="button"
           onClick={handleAddCategory}
           disabled={!newCategory.trim()}
           style={{

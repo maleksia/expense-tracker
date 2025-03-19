@@ -1,5 +1,9 @@
 from db import db
 from datetime import datetime
+from flask import Flask, request, jsonify
+from sqlalchemy.exc import SQLAlchemyError
+
+app = Flask(__name__)
 
 class User(db.Model):
     __tablename__ = 'users'
@@ -177,3 +181,90 @@ class ListDeletionApproval(db.Model):
             'approved': self.approved,
             'created_at': self.created_at.isoformat()
         }
+
+class Changelog(db.Model):
+    __tablename__ = 'changelog'
+    id = db.Column(db.Integer, primary_key=True)
+    list_id = db.Column(db.Integer, db.ForeignKey('expense_lists.id', ondelete='CASCADE'), nullable=False)
+    action = db.Column(db.String(200), nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    username = db.Column(db.String(150), db.ForeignKey('users.username', ondelete='CASCADE'), nullable=False)
+    details = db.Column(db.JSON, nullable=True)
+
+def log_action(list_id, action, username):
+    new_log = Changelog(
+        list_id=list_id,
+        action=action,
+        username=username,
+        timestamp=datetime.utcnow()
+    )
+    db.session.add(new_log)
+    db.session.commit()
+
+@app.route('/add-expense', methods=['POST'])
+def add_expense():
+    try:
+        data = request.get_json()
+        new_expense = Expense(
+            payer=data['payer'],
+            amount=float(data['amount']),
+            description=data['description'],
+            category=data['category'],
+            date=datetime.strptime(data['date'], '%Y-%m-%d') if 'date' in data else None,
+            username=data['username'],
+            participants=','.join(data['participants']),
+            list_id=data['list_id']
+        )
+        db.session.add(new_expense)
+        db.session.commit()
+        log_action(new_expense.list_id, f"Added expense: {new_expense.description}", new_expense.username)
+        return jsonify(new_expense.as_dict()), 201
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print(f"Database error in add_expense endpoint: {str(e)}")
+        return jsonify({"error": "Database error occurred"}), 500
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/delete-expense/<int:id>', methods=['DELETE'])
+def delete_expense(id):
+    try:
+        expense = Expense.query.get(id)
+        if not expense:
+            return jsonify({"error": "Expense not found"}), 404
+        deleted = DeletedExpense(
+            original_id=expense.id,
+            payer=expense.payer,
+            amount=expense.amount,
+            description=expense.description,
+            category=expense.category,
+            date=expense.date,
+            username=expense.username,
+            deleted_at=datetime.utcnow(),
+            participants=expense.participants,
+            list_id=expense.list_id
+        )
+        db.session.add(deleted)
+        db.session.delete(expense)
+        db.session.commit()
+        log_action(expense.list_id, f"Deleted expense: {expense.description}", expense.username)
+        return jsonify({"message": "Expense moved to trash"}), 200
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print(f"Database error in delete_expense endpoint: {str(e)}")
+        return jsonify({"error": "Database error occurred"}), 500
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error deleting expense: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/changelog/<int:list_id>', methods=['GET'])
+def get_changelog(list_id):
+    changelog_entries = Changelog.query.filter_by(list_id=list_id).order_by(Changelog.timestamp.desc()).all()
+    return jsonify([{
+        "id": entry.id,
+        "action": entry.action,
+        "timestamp": entry.timestamp,
+        "username": entry.username
+    } for entry in changelog_entries]), 200

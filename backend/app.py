@@ -5,7 +5,7 @@ from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_socketio import SocketIO
 from db import db
-from models import User, Expense, Payer, Category, DeletedExpense, ExpenseList, ListParticipant, ListShareRequest
+from models import User, Expense, Payer, Category, DeletedExpense, ExpenseList, ListParticipant, ListShareRequest, Changelog
 from sqlalchemy.exc import SQLAlchemyError
 
 app = Flask(__name__, static_folder='../frontend/build', static_url_path='/')
@@ -169,6 +169,11 @@ def handle_connect():
         debts = calculate_debts_internal(username)
         socketio.emit(f'expensesUpdated_{username}', debts)
 
+def log_action(list_id, action, username, details=None):
+    changelog_entry = Changelog(list_id=list_id, action=action, username=username, details=details)
+    db.session.add(changelog_entry)
+    db.session.commit()
+
 @app.route('/add-expense', methods=['POST'])
 def add_expense():
     try:
@@ -185,7 +190,7 @@ def add_expense():
             category=data['category'],
             date=datetime.strptime(data['date'], '%Y-%m-%d') if 'date' in data else None,
             username=data['username'],
-            participants=','.join(data['participants']),  # Participants already have prefixes
+            participants=','.join(data['participants']),
             list_id=data['list_id']
         )
         db.session.add(new_expense)
@@ -196,6 +201,7 @@ def add_expense():
         debts = calculate_debts_internal(data['username'], data['list_id'])
         socketio.emit(f'expensesUpdated_{data["username"]}_{data["list_id"]}', debts)
         
+        log_action(new_expense.list_id, f"User: {new_expense.username} | Added new expense \"{new_expense.description}\" ({new_expense.amount}€)", new_expense.username)
         return jsonify(expense_dict), 201
     except SQLAlchemyError as e:
         db.session.rollback()
@@ -292,6 +298,7 @@ def delete_expense(id):
         db.session.delete(expense)
         db.session.commit()
         
+        log_action(expense.list_id, f"User: {expense.username} | Deleted expense \"{expense.description}\" ({expense.amount}€)", expense.username)
         return jsonify({"message": "Expense moved to trash"}), 200
     except SQLAlchemyError as e:
         db.session.rollback()
@@ -469,6 +476,8 @@ def restore_expense(id):
         db.session.add(expense)
         db.session.delete(deleted)
         db.session.commit()
+        
+        log_action(expense.list_id, f"User: {expense.username} | Restored expense \"{expense.description}\" ({expense.amount}€)", expense.username)
         return jsonify(expense.as_dict()), 200
     except SQLAlchemyError as e:
         db.session.rollback()
@@ -563,6 +572,8 @@ def create_list():
                 )
                 db.session.add(share_request)
         db.session.commit()
+        
+        log_action(new_list.id, f"User: {creator} | Created new list \"{new_list.name}\"", creator)
         return jsonify(new_list.as_dict()), 201
     except Exception as e:
         db.session.rollback()
@@ -586,6 +597,7 @@ def update_list(list_id):
             return jsonify({"error": "List must have at least one participant or shared user"}), 400
 
         # Update list name and non-registered participants
+        old_name = expense_list.name
         expense_list.name = data['name']
         if 'participants' in data:  # Only update participants if provided
             processed_participants = process_participants(
@@ -613,6 +625,8 @@ def update_list(list_id):
                 db.session.add(share_request)
 
         db.session.commit()
+        
+        log_action(list_id, f"User: {expense_list.created_by} | Updated list name: \"{old_name}\" → \"{expense_list.name}\"", expense_list.created_by)
         return jsonify(expense_list.as_dict())
 
     except SQLAlchemyError as e:
@@ -639,6 +653,7 @@ def delete_list(list_id):
             # Finally delete the list
             db.session.delete(expense_list)
             db.session.commit()
+            log_action(list_id, f"User: {expense_list.created_by} | Deleted list \"{expense_list.name}\"", expense_list.created_by)
             return jsonify({"message": "List deleted successfully"}), 200
             
         except Exception as e:
@@ -676,7 +691,7 @@ def share_list(list_id):
         data = request.get_json()
         to_username = data.get('username')
         from_username = data.get('from_username')
-        message = data.get('message', '')  # Get optional message
+        message = data.get('message', '')
 
         if not from_username:
             return jsonify({'error': 'From username is required'}), 400
@@ -716,6 +731,8 @@ def share_list(list_id):
         )
         db.session.add(share_request)
         db.session.commit()
+        
+        log_action(list_id, f"User: {from_username} | Shared list with {to_username}", from_username)
         return jsonify({'message': 'Share request sent successfully'}), 200
     except Exception as e:
         db.session.rollback()
@@ -790,7 +807,7 @@ def check_user():
     user = User.query.filter_by(username=username).first()
     return jsonify({'exists': user is not None})
 
-@app.route('/update-expense/<int:id>', methods=['PUT', 'OPTIONS'])  # Add OPTIONS here
+@app.route('/update-expense/<int:id>', methods=['PUT', 'OPTIONS'])
 def update_expense(id):
     if request.method == 'OPTIONS':
         response = jsonify({'message': 'OK'})
@@ -807,6 +824,8 @@ def update_expense(id):
             data['payer'] = f"{data['payerType']}:{data['payer']}"
 
         # Update expense fields
+        old_description = expense.description
+        old_amount = expense.amount
         expense.payer = data['payer']
         expense.amount = float(data['amount'])
         expense.description = data['description']
@@ -824,6 +843,14 @@ def update_expense(id):
         debts = calculate_debts_internal(data['username'], data['list_id'])
         socketio.emit(f'expensesUpdated_{data["username"]}_{data["list_id"]}', debts)
         
+        changes = []
+        if old_description != expense.description:
+            changes.append(f"Description: {old_description} → {expense.description}")
+        if old_amount != expense.amount:
+            changes.append(f"Amount: {old_amount}€ → {expense.amount}€")
+        
+        change_text = " | ".join(changes)
+        log_action(expense.list_id, f"User: {expense.username} | Updated expense (ID: {expense.id}) | {change_text}", expense.username)
         return jsonify(expense_dict), 200
     except SQLAlchemyError as e:
         db.session.rollback()
@@ -832,6 +859,35 @@ def update_expense(id):
     except Exception as e:
         db.session.rollback()
         print(f"Error in update_expense: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/changelog/<int:list_id>', methods=['GET'])
+def get_changelog(list_id):
+    changelog_entries = Changelog.query.filter_by(list_id=list_id).order_by(Changelog.timestamp.desc()).all()
+    return jsonify([{
+        "id": entry.id,
+        "action": entry.action,
+        "timestamp": entry.timestamp,
+        "username": entry.username
+    } for entry in changelog_entries]), 200
+
+@app.route('/remove-user/<int:list_id>/<username>', methods=['DELETE'])
+def remove_user_from_list(list_id, username):
+    try:
+        participant = ListParticipant.query.filter_by(list_id=list_id, username=username).first()
+        if not participant:
+            return jsonify({"error": "User not found in list"}), 404
+        db.session.delete(participant)
+        db.session.commit()
+        
+        log_action(list_id, f"User: {participant.username} | Removed {username} from list", participant.username)
+        return jsonify({"message": "User removed from list successfully"}), 200
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print(f"Database error in remove_user_from_list endpoint: {str(e)}")
+        return jsonify({"error": "Database error occurred"}), 500
+    except Exception as e:
+        db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':

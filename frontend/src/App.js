@@ -20,6 +20,7 @@ import ExpenseListsView from './components/lists/ExpenseListsView';
 import { LoadingSpinner, Notification, ConfirmDialog } from './components/common/index';
 import NotFound from './components/common/NotFound';
 import AllExpenses from './components/expenses/AllExpenses';
+import Changelog from './components/settings/Changelog';
 
 console.log('Hello World!!!');
 
@@ -299,6 +300,7 @@ function AppContent() {
                 currentUser={currentUser}
                 currentList={currentList}
               />
+              {currentList && <Changelog listId={currentList.id} />}
             </ProtectedRoute>
           } />
           <Route path="/list/:listId/settings" element={
@@ -307,6 +309,7 @@ function AppContent() {
                 currentUser={currentUser}
                 currentList={currentList}
               />
+              {currentList && <Changelog listId={currentList.id} />}
             </ProtectedRoute>
           } />
         </Routes>
