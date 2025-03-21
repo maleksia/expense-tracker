@@ -117,36 +117,75 @@ def calculate_debts_internal(username=None, list_id=None):
     if not expenses:
         return {}
     
-    debts = {}
+    # Calculate net balance for each participant based on expenses they're part of
+    net_balances = {}
+    
     for expense in expenses:
         if not expense.payer or not expense.participants:
             continue
-
-        amount = expense.amount
-        payer = expense.payer  # Already has prefix (registered: or nonRegistered:)
+            
+        payer = expense.payer
         participants = expense.participants.split(',')
-        
-        # Ensure all participants are valid
         participants = [p for p in participants if p and ':' in p]
+        
         if not participants:
             continue
-
-        # Calculate share per participant
-        share = amount / len(participants)
+            
+        # Calculate share per participant for this expense
+        share = expense.amount / len(participants)
         
+        # Initialize payer's balance if not exists
+        if payer not in net_balances:
+            net_balances[payer] = 0
+            
+        # Add full amount to payer's balance
+        net_balances[payer] += expense.amount
+        
+        # Subtract shares from participants' balances
         for participant in participants:
-            # Skip if participant is the payer (exact match including prefix)
-            if participant == payer:
-                continue
-                
-            # Initialize nested dictionaries if needed
-            if participant not in debts:
-                debts[participant] = {}
-            if payer not in debts[participant]:
-                debts[participant][payer] = 0
-                
-            # Add the debt
-            debts[participant][payer] += share
+            if participant not in net_balances:
+                net_balances[participant] = 0
+            net_balances[participant] -= share
+
+    # Calculate debts based on net balances
+    debts = {}
+    
+    # Convert net balances to list and sort
+    sorted_participants = sorted(net_balances.items(), key=lambda x: x[1])
+    
+    i = 0  # index for debtors (negative balance)
+    j = len(sorted_participants) - 1  # index for creditors (positive balance)
+    
+    while i < j:
+        debtor = sorted_participants[i]
+        creditor = sorted_participants[j]
+        
+        if debtor[1] >= 0:  # No longer a debtor
+            i += 1
+            continue
+            
+        if creditor[1] <= 0:  # No longer a creditor
+            j -= 1
+            continue
+            
+        # Calculate the debt amount
+        debt_amount = min(abs(debtor[1]), creditor[1])
+        
+        # Add the debt to the result
+        if debt_amount > 0:
+            if debtor[0] not in debts:
+                debts[debtor[0]] = {}
+            debts[debtor[0]][creditor[0]] = round(debt_amount, 2)
+        
+        # Update balances
+        sorted_participants[i] = (debtor[0], debtor[1] + debt_amount)
+        sorted_participants[j] = (creditor[0], creditor[1] - debt_amount)
+        
+        # Move indices if balances are settled
+        if abs(sorted_participants[i][1]) < 0.01:
+            i += 1
+        if abs(sorted_participants[j][1]) < 0.01:
+            j -= 1
 
     return debts
 
