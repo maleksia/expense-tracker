@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../context/ThemeContext';
+import { useCurrency } from '../../context/CurrencyContext';
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -10,13 +11,14 @@ import { FaUserCog, FaChartLine, FaTrophy } from 'react-icons/fa';
 
 function AnalyticsDashboard({ expenses }) {
   const { theme } = useTheme();
+  const { listCurrencies } = useCurrency();
   const [filteredExpenses, setFilteredExpenses] = useState(expenses);
   const [dateRange, setDateRange] = useState({
     start: '',
     end: ''
   });
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedPayerWithStatus, setSelectedPayerWithStatus] = useState('all');  // Changed from selectedPayer
+  const [selectedPayerWithStatus, setSelectedPayerWithStatus] = useState('all');
   const [sortBy, setSortBy] = useState('date');
   const [monthlyData, setMonthlyData] = useState([]);
   const [categoryData, setCategoryData] = useState([]);
@@ -38,9 +40,15 @@ function AnalyticsDashboard({ expenses }) {
   const COLORS = ['#2563eb', '#7c3aed', '#db2777', '#ea580c', '#65a30d', '#0891b2', '#6366f1'];
 
   const uniqueCategories = [...new Set(expenses.map(e => e.category))];
-  const uniquePayers = [...new Set(expenses.map(e => `${e.payerType}:${e.payer}`))].map(p => {
-    const [payerType, name] = p.split(':');
-    return { payerType, name };
+
+  // Update uniquePayers processing to handle duplicates properly
+  const uniquePayers = [...new Set(expenses.map(e => e.payer))].map(payer => {
+    const [status, name] = payer.split(':');
+    return {
+      payerType: status,
+      name: name,
+      fullName: payer
+    };
   });
 
   // Filter expenses based on selected filters
@@ -61,12 +69,8 @@ function AnalyticsDashboard({ expenses }) {
       filtered = filtered.filter(e => e.category === selectedCategory);
     }
 
-    // Updated payer filter to use full status:name combination
     if (selectedPayerWithStatus !== 'all') {
-      const [selectedType, selectedName] = selectedPayerWithStatus.split(':');
-      filtered = filtered.filter(e => 
-        e.payerType === selectedType && e.payer === selectedName
-      );
+      filtered = filtered.filter(e => e.payer === selectedPayerWithStatus);
     }
 
     filtered.sort((a, b) => {
@@ -86,7 +90,6 @@ function AnalyticsDashboard({ expenses }) {
   // Process data for charts
   useEffect(() => {
     if (filteredExpenses.length > 0) {
-      // Monthly spending
       const monthlySpending = filteredExpenses.reduce((acc, expense) => {
         const month = format(parseISO(expense.date), 'MMM yyyy');
         acc[month] = (acc[month] || 0) + expense.amount;
@@ -99,10 +102,19 @@ function AnalyticsDashboard({ expenses }) {
         return acc;
       }, {});
 
-      // Payer distribution - separate registered and non-registered
+      // Update payer distribution to prevent duplicates and keep status
       const payerSpending = filteredExpenses.reduce((acc, expense) => {
-        const key = `${expense.payerType}:${expense.payer}`;
-        acc[key] = (acc[key] || 0) + expense.amount;
+        const [status, name] = expense.payer.split(':');
+        const key = expense.payer;  // Use full identifier as key
+        if (!acc[key]) {
+          acc[key] = {
+            value: 0,
+            payerType: status,
+            name: name,
+            fullName: expense.payer  // Store full payer identifier
+          };
+        }
+        acc[key].value += expense.amount;
         return acc;
       }, {});
 
@@ -132,14 +144,12 @@ function AnalyticsDashboard({ expenses }) {
         value: Number(value.toFixed(2))
       })));
 
-      setPayerData(Object.entries(payerSpending).map(([key, value]) => {
-        const [payerType, name] = key.split(':');
-        return {
-          name,
-          value: Number(value.toFixed(2)),
-          payerType
-        };
-      }));
+      setPayerData(Object.values(payerSpending).map(({ value, payerType, name }) => ({
+        name,
+        value: Number(value.toFixed(2)),
+        payerType,
+        fullIdentifier: `${payerType}:${name}`
+      })));
 
       const totalSpent = filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0);
       setStats({
@@ -151,7 +161,6 @@ function AnalyticsDashboard({ expenses }) {
     }
   }, [filteredExpenses, sortBy]);
 
-  // Add new useEffect for additional analytics
   useEffect(() => {
     if (filteredExpenses.length > 0) {
       // Get top 5 expenses
@@ -169,9 +178,8 @@ function AnalyticsDashboard({ expenses }) {
         return acc;
       }, {});
 
-      // Define weekday order
       const weekdayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-      
+
       // Create ordered data array with totals
       const orderedDayData = weekdayOrder.map(day => ({
         day: day.slice(0, 3), // Use three-letter abbreviations
@@ -183,8 +191,10 @@ function AnalyticsDashboard({ expenses }) {
     }
   }, [filteredExpenses]);
 
+  // Update the renderPayer function to correctly identify registered users
   const renderPayer = (payer, payerType) => {
-    const isRegistered = payerType === 'registered';
+    const [status, name] = payer.split(':');
+    const isRegistered = status === 'registered';
     return (
       <div style={{
         display: 'inline-flex',
@@ -196,12 +206,12 @@ function AnalyticsDashboard({ expenses }) {
         fontSize: '0.95rem'
       }}>
         {isRegistered && <FaUserCog style={{ color: theme.primary }} />}
-        <span style={{ color: theme.text }}>{payer}</span>
+        <span style={{ color: theme.text }}>{name || payer}</span>
       </div>
     );
   };
 
-  // Update the Payer Distribution chart
+  // Update the PayerChart component
   const PayerChart = () => (
     <div style={{ backgroundColor: theme.surface, padding: '20px', borderRadius: '8px' }}>
       <h3>Spending by Payer</h3>
@@ -209,13 +219,15 @@ function AnalyticsDashboard({ expenses }) {
         <BarChart data={payerData}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis 
-            dataKey="name"
+            dataKey="fullIdentifier"
+            tickFormatter={(value) => value.split(':')[1]}
             tick={({ x, y, payload }) => {
-              const isRegistered = payerData[payload.index]?.payerType === 'registered';
+              const isRegistered = payload.value.startsWith('registered:');
+              const name = payload.value.split(':')[1];
               return (
                 <g transform={`translate(${x},${y})`}>
                   <text x={0} y={0} dy={16} textAnchor="middle" fill={theme.text}>
-                    {isRegistered ? '👤 ' : ''}{payload.value}
+                    {isRegistered ? '👤 ' : ''}{name}
                   </text>
                 </g>
               );
@@ -237,7 +249,7 @@ function AnalyticsDashboard({ expenses }) {
                       {data.payerType === 'registered' && <FaUserCog style={{ color: theme.primary }} />}
                       {data.name}
                     </p>
-                    <p style={{ margin: '5px 0 0 0' }}>€{data.value.toFixed(2)}</p>
+                    <p style={{ margin: '5px 0 0 0' }}>{currencySymbol}{data.value.toFixed(2)}</p>
                   </div>
                 );
               }
@@ -258,7 +270,7 @@ function AnalyticsDashboard({ expenses }) {
     </div>
   );
 
-  // Update the payer filter to use full status+name combination
+  // Update the payer filter to use clean names
   const PayerFilter = () => (
     <div>
       <label>Payer</label>
@@ -275,8 +287,8 @@ function AnalyticsDashboard({ expenses }) {
         }}
       >
         <option value="all">All Payers</option>
-        {uniquePayers.map(({ name, payerType }) => (
-          <option key={`${payerType}:${name}`} value={`${payerType}:${name}`}>
+        {uniquePayers.map(({ payerType, name, fullName }) => (
+          <option key={fullName} value={fullName}>
             {payerType === 'registered' ? '👤 ' : ''}{name}
           </option>
         ))}
@@ -304,7 +316,7 @@ function AnalyticsDashboard({ expenses }) {
             {topExpenses.map((expense, index) => (
               <tr key={expense.id}>
                 <td style={{ padding: '8px', borderBottom: `1px solid ${theme.border}` }}>{expense.description}</td>
-                <td style={{ padding: '8px', borderBottom: `1px solid ${theme.border}` }}>€{expense.amount.toFixed(2)}</td>
+                <td style={{ padding: '8px', borderBottom: `1px solid ${theme.border}` }}>{currencySymbol}{expense.amount.toFixed(2)}</td>
                 <td style={{ padding: '8px', borderBottom: `1px solid ${theme.border}` }}>
                   {format(parseISO(expense.date), 'dd.MM.yyyy')}
                 </td>
@@ -328,7 +340,7 @@ function AnalyticsDashboard({ expenses }) {
       <ResponsiveContainer width="100%" height={200}>
         <BarChart data={dayOfWeekData}>
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis 
+          <XAxis
             dataKey="day"
             height={50}
             tick={{
@@ -338,10 +350,10 @@ function AnalyticsDashboard({ expenses }) {
             }}
           />
           <YAxis />
-          <Tooltip formatter={(value) => `€${value.toFixed(2)}`} />
+          <Tooltip formatter={(value) => `${currencySymbol}${value.toFixed(2)}`} />
           <Bar dataKey="total">
             {dayOfWeekData.map((entry, index) => (
-              <Cell 
+              <Cell
                 key={`cell-${index}`}
                 fill={COLORS[index % COLORS.length]}
               />
@@ -351,6 +363,17 @@ function AnalyticsDashboard({ expenses }) {
       </ResponsiveContainer>
     </div>
   );
+
+  const currencySymbols = {
+    'EUR': '€',
+    'USD': '$',
+    'GBP': '£'
+  };
+
+  // Get the current list's currency (extract list_id from first expense)
+  const listId = expenses[0]?.list_id;
+  const currentCurrency = listCurrencies[listId] || 'EUR';
+  const currencySymbol = currencySymbols[currentCurrency];
 
   return (
     <div style={{ padding: '20px', color: theme.text }}>
@@ -493,9 +516,9 @@ function AnalyticsDashboard({ expenses }) {
         gap: '20px',
         marginBottom: '30px'
       }}>
-        <StatCard title="Total Spent" value={`€${stats.totalSpent}`} theme={theme} />
-        <StatCard title="Average Expense" value={`€${stats.avgExpense}`} theme={theme} />
-        <StatCard title="Largest Expense" value={`€${stats.maxExpense}`} theme={theme} />
+        <StatCard title="Total Spent" value={`${currencySymbol}${stats.totalSpent}`} theme={theme} />
+        <StatCard title="Average Expense" value={`${currencySymbol}${stats.avgExpense}`} theme={theme} />
+        <StatCard title="Largest Expense" value={`${currencySymbol}${stats.maxExpense}`} theme={theme} />
         <StatCard title="Total Transactions" value={stats.totalExpenses} theme={theme} />
       </div>
 
@@ -526,7 +549,7 @@ function AnalyticsDashboard({ expenses }) {
                 cy="50%"
                 outerRadius={100}
                 label={({ name, value, percent }) =>
-                  `${name}: €${value.toFixed(2)} (${(percent * 100).toFixed(1)}%)`
+                  `${name}: ${currencySymbol}${value.toFixed(2)} (${(percent * 100).toFixed(1)}%)`
                 }
                 labelLine={true}
               >
@@ -538,7 +561,7 @@ function AnalyticsDashboard({ expenses }) {
                 ))}
               </Pie>
               <Tooltip
-                formatter={(value) => `€${value.toFixed(2)}`}
+                formatter={(value) => `${currencySymbol}${value.toFixed(2)}`}
               />
               <Legend
                 layout="vertical"
